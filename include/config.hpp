@@ -9,6 +9,7 @@ class config {
 private:
     std::map<std::string, std::vector<int>> profiles;
     std::vector<std::vector<std::map<float, float>>> fans;
+    std::vector<int> is_cpu_or_gpu;
     bool readed = false;
     toml::parse_result config;
 
@@ -19,9 +20,12 @@ public:
     bool is_readed() {
         return readed;
     }
-    auto& get_fans_settings(){
+    std::vector<std::vector<std::map<float, float>>>& get_fans_settings(){
         return fans;
     }
-    void insert(std::vector<std::vector<std::map<float, float>>> fans);
+    std::vector<int>& get_cpu_or_gpu() {
+        return is_cpu_or_gpu;
+    }
+    void insert(decltype(fans) fans, decltype(is_cpu_or_gpu) cpu_or_gpu);
 };
 #endif // !__CONFIG_HPP__

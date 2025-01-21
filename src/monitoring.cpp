@@ -2,7 +2,6 @@
 #include "monitoring.hpp"
 #include "nvml.h"
 #include <cstring>
-#include <exception>
 #include <format>
 #include <iostream>
 #include <stdexcept>

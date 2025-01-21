@@ -14,6 +14,7 @@
 // Read comments in imgui_impl_vulkan.h.
 
 #include "gdk/gdk.h"
+#include "glib.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
@@ -374,10 +375,13 @@ static GLFWwindow *window = NULL;
 static hid_wrapper wrapper;
 static config conf;
 static std::atomic<bool> need_get_fan_data = false;
+static std::atomic<bool> need_open_file_dialog = false;
+static std::atomic<bool> gtk_running = true;
 
 // Функция для закрытия программы
 static gboolean on_quit(GtkWidget *widget, gpointer data) {
-    gtk_main_quit(); // Закрытие GTK приложения
+    /*gtk_main_quit(); // Закрытие GTK приложения*/
+    gtk_running.store(false);
     glfwSetWindowShouldClose(window, TRUE);
     return FALSE;
 }
@@ -395,8 +399,6 @@ static void on_toggle_window(GtkWidget *widget, gpointer data) {
 static void on_preset_clicked(GtkWidget *widget, gpointer data) {
     auto vals = conf.get_profiles()[std::string((char *)data)];
     size_t i = 0;
-
-    std::cout << (gchar *)data << std::endl;
 
     for (auto &v : vals) {
         wrapper.send_to_controller(i++, v);
@@ -416,7 +418,6 @@ static void preset_section(GtkWidget **menu) {
     auto profiles = conf.get_profiles();
 
     for (auto &[n, v] : profiles) {
-        std::cout << "Prof name: " << n.c_str() << std::endl;
         GtkWidget *toggle_item = gtk_menu_item_new_with_label((char *)n.c_str());
         g_signal_connect(toggle_item, "activate", G_CALLBACK(on_preset_clicked), strdup((char *)n.c_str()) );
         gtk_menu_shell_append(GTK_MENU_SHELL(*menu), toggle_item);
@@ -433,61 +434,73 @@ void close_callback(GLFWwindow* window)
     glfwSetWindowShouldClose(window, FALSE);
     glfwHideWindow(window);
 }
-// Поток для работы с GTK
-void gtk_thread_func() {
-    gtk_main();  // Запуск цикла GTK
+
+void open_file_dialog(gpointer data) {
+    GtkFileChooserAction action = (bool)data ? GTK_FILE_CHOOSER_ACTION_SAVE :
+                                            GTK_FILE_CHOOSER_ACTION_OPEN;
+    // Создание файла-диалога
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        "Open File",                            // Заголовок окна
+        NULL,                                   // Родительское окно (нет родительского)
+        action,          // Режим диалога (открытие файла)
+        "_Cancel", GTK_RESPONSE_CANCEL,        // Кнопка "Отмена"
+        "_Open", GTK_RESPONSE_ACCEPT,          // Кнопка "Открыть"
+        NULL                                   // Завершаем аргументы
+    );
+
+    // Показать диалог и обработать результат
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        printf("Выбранный файл: %s\n", filename);
+        g_free(filename); // Освобождаем память
+    }
+
+    // Уничтожаем диалог
+    gtk_widget_destroy(dialog);
 }
 
-
+// Поток для работы с GTK
+void gtk_thread_func() {
+    /*gtk_main();  // Запуск цикла GTK*/
+    while (gtk_running.load()) {
+        if (need_open_file_dialog.load()) {
+            need_open_file_dialog.store(false);
+            g_idle_add((GSourceFunc)open_file_dialog, (gpointer)false);
+        }
+        gtk_main_iteration_do(FALSE);
+    }
+}
 
 std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;
 std::mutex mutex;
 std::atomic<bool> running = true;
-std::atomic<bool> can_read = false;
 monitoring mon;
 std::vector<std::vector<std::map<float, float>>> fans;
+std::vector<int> cpu_or_gpu;
 
-
-void fan_data_thread() {
-    using namespace std::chrono_literals;
-    while(running.load()) {
-        std::cout << "Thread\n";
-        mutex.lock();
-        wrapper.update_fan_data();
-        while (wrapper.failed) {
-            std::cout << "recalculate\n";
-            std::this_thread::sleep_for(1s);
-            wrapper.update_fan_data();
-        }
-        fan_data = wrapper.get_all_fan_data();
-        mutex.unlock();
-        for(auto &&a : fan_data) {
-            for(auto &&b : a) {
-                std::cout << (int)b.first << " " << (int)b.second << " | ";
-            }
-            std::cout << "\n";
-        }
-        sleep(5);
-    }
-}
 
 void change_speed_thread() {
     float cpu_temp;
+    float gpu_temp;
+    int pos;
     while (running.load()) {
         mon.update();
-        cpu_temp = round((float)mon.get_cpu_temp() / 10.0f) * 10.0f;
+        cpu_temp = round((float)mon.get_cpu_temp() / 5.0f) * 5.0f;
+        gpu_temp = round((float)mon.get_gpu_temp() / 5.0f) * 5.0f;
         for (size_t d = 0; d < fans.size(); d++) {
             for (size_t f = 0; f < fans[d].size(); f++) {
-                wrapper.sent_to_fan(d, f + 1, (uint)fans[d][f].find(cpu_temp)->second);
+                pos = fans[d].size() * d + f;
+                wrapper.sent_to_fan(d, f + 1, cpu_or_gpu[pos] ?
+                                                    (uint)fans[d][f].find(gpu_temp)->second :
+                                                    (uint)fans[d][f].find(cpu_temp)->second);
             }
         }
         sleep(1);
     }
-
 }
 
 void init_gtk(int argc, char* argv[]) {
-    gtk_init(&argc, &argv);
+    gtk_init(NULL, NULL);
 
     // Создаем индикатор
     AppIndicator *indicator = app_indicator_new("example-indicator", "indicator-messages", APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
@@ -518,7 +531,6 @@ void init_gtk(int argc, char* argv[]) {
 
 enum class MODE {
     ALL = 1,
-    PER_CONTROLLER,
     PER_FAN
 };
 
@@ -528,6 +540,62 @@ struct speed {
     std::vector<std::vector<int>> per_fan;
     MODE mode;
 };
+
+void print_plot(std::map<float, float> *cur_fan) {
+    if (ImPlot::BeginPlot("Fan Control", ImVec2(-1 , -1), ImPlotFlags_NoLegend | ImPlotFlags_NoMenus)) {
+        // Рисуем существующие точки
+        ImPlot::SetupAxesLimits(0, 100, 0, 100);
+        if (!(*cur_fan).empty()) {
+            std::vector<float> xs, ys;
+            for (auto&& [x, y] : *cur_fan) {
+                xs.push_back(x);
+                ys.push_back(y);
+            }
+            ImPlot::PlotLine("Линия", xs.data(), ys.data(), (*cur_fan).size());
+            ImPlot::PlotScatter("Точки", xs.data(), ys.data(), (*cur_fan).size());
+        }
+
+        // Обработка кликов мыши
+        if (ImPlot::IsPlotHovered()) {
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                ImPlotPoint mousePos = ImPlot::GetPlotMousePos(); // Получаем координаты мыши
+
+                std::cout << mousePos.x << " " << mousePos.y << "\n";
+
+                // Округляем координаты до ближайших значений, кратных 5
+                float roundedX = round(mousePos.x / 5.0f) * 5.0f;
+                float roundedY = round(mousePos.y / 5.0f) * 5.0f;
+
+                // Проверяем, что координаты остаются в диапазоне [0, 100]
+                if (roundedX >= 0.0f && roundedX <= 100.0f &&
+                    roundedY >= 0.0f && roundedY <= 100.0f) {
+                    (*cur_fan)[roundedX] = roundedY; // Добавляем или обновляем точку
+                }
+            }
+            if(ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                ImPlotPoint mousePos = ImPlot::GetPlotMousePos(); // Получаем координаты мыши
+
+                std::cout << mousePos.x << " " << mousePos.y << "\n";
+
+                // Округляем координаты до ближайших значений, кратных 5
+                float roundedX = round(mousePos.x / 5.0f) * 5.0f;
+                float roundedY = round(mousePos.y / 5.0f) * 5.0f;
+
+                // Проверяем, что координаты остаются в диапазоне [0, 100]
+                if (roundedX >= 0.0f && roundedX <= 100.0f &&
+                    roundedY >= 0.0f && roundedY <= 100.0f) {
+                    std::erase_if(*cur_fan, [&roundedX](const auto& item) {
+                                  auto const& [k, v] = item;
+                                  return k == roundedX;
+                                  });
+                }
+
+            }
+        }
+
+        ImPlot::EndPlot();
+    }
+}
 
 // Main code
 int main(int argc, char** argv)
@@ -546,10 +614,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    /*int all_speed = 50;*/
-    /*std::array<int, 4> speed = {50, 50, 50, 50};*/
     speed speed;
-    speed.mode = MODE::PER_CONTROLLER;
+    speed.mode = MODE::PER_FAN;
 
     std::map<float, float> points;
 
@@ -580,15 +646,10 @@ int main(int argc, char** argv)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiWindowFlags_NoBackground;       // Enable Multi-Viewport / Platform Windows
-    //io.ConfigViewportsNoAutoMerge = true;
-    //io.ConfigViewportsNoTaskBarIcon = true;
     io.FontGlobalScale = 1.4f;
 
-    // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
 
-    // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForVulkan(window, true);
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.Instance = g_Instance;
@@ -610,39 +671,17 @@ int main(int argc, char** argv)
     glfwSetWindowCloseCallback(window, close_callback);
     init_gtk(argc, argv);
 
-    // Создаем поток для обработки событий GTK
-    /*pthread_t gtk_thread;*/
     std::thread gtk_thread(gtk_thread_func);
-    /*pthread_create(&gtk_thread, NULL, gtk_thread_func, NULL);*/
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != nullptr);
-
-    // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
     bool set_all = false;
-    bool per_fans = false;
     unsigned char sp;
     unsigned short rpm;
     size_t cnum = wrapper.controllers_num();
 
     if (!conf.is_readed()) {
-        fan_data.resize(cnum, std::vector<std::pair<unsigned char, unsigned short>>(5));
+        fan_data.resize(cnum, std::vector<std::pair<unsigned char, unsigned short>>(4));
         fans.resize(cnum, std::vector<std::map<float, float>>(5));
+        cpu_or_gpu.resize(20, 0);
         for (auto &&i : fans) {
             for (auto &&j : i) {
                 for (size_t idx = 0; idx <= 100; idx+=10) {
@@ -651,33 +690,24 @@ int main(int argc, char** argv)
             }
         }
 
-        conf.insert(fans);
+        conf.insert(fans, cpu_or_gpu);
     }
     else {
-        std::cout << "===Getted===\n";
         fans = conf.get_fans_settings();
+        cpu_or_gpu = conf.get_cpu_or_gpu();
     }
-    std::map<float, float> *cur_fan;
 
     speed.per_controller.resize(cnum);
     speed.per_fan.resize(cnum, std::vector<int>(5));
 
-    int selectedI = -1, selectedJ = -1;
     std::thread speed_control(change_speed_thread);
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // Main loop
     while (!glfwWindowShouldClose(window))
     {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
         glfwPollEvents();
 
-        // Resize swap chain?
         int fb_width, fb_height;
         glfwGetFramebufferSize(window, &fb_width, &fb_height);
         if (fb_width > 0 && fb_height > 0 && (g_SwapChainRebuild || g_MainWindowData.Width != fb_width || g_MainWindowData.Height != fb_height))
@@ -693,50 +723,42 @@ int main(int argc, char** argv)
             continue;
         }
 
-        // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
             static float f = 0.0f;
             static int counter = 0;
-
-            if (need_get_fan_data.load()) {
-
-            }
+            static GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
 
             ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
             ImGui::SetNextWindowSize(ImVec2(fb_width, fb_height));
-            ImGui::Begin("Hello, world!", NULL,  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove);                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Hello, world!", NULL,  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);                          // Create a window called "Hello, world!" and append into it.
 
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::BeginMenu("File")) {
+                    if (ImGui::MenuItem("Open")) {
+                        need_open_file_dialog.store(true);
+                    }
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Quit")) {
+                    on_quit(NULL, NULL);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
+            }
             ImGui::Checkbox("Set all", &set_all);
             if (set_all) {
                 speed.mode = MODE::ALL;
-                per_fans = false;
             }
             else
-                speed.mode = MODE::PER_CONTROLLER;
-
-            ImGui::Checkbox("Per fan", &per_fans);
-            if (per_fans) {
                 speed.mode = MODE::PER_FAN;
-                set_all = false;
-            }
 
             switch (speed.mode) {
                 case MODE::ALL:
                     ImGui::SliderInt("All controllers", &speed.all_speed, 20, 100);
-                    break;
-                case MODE::PER_CONTROLLER:
-                    for (size_t i = 0; i < 4; i++) {
-                        ImGui::SliderInt(std::format("Controller {}", i + 1).c_str(), &speed.per_controller[i], 20, 100);
-                    }
                     break;
                 case MODE::PER_FAN:
                     if (speed.mode == MODE::PER_FAN) {
@@ -746,79 +768,24 @@ int main(int argc, char** argv)
                                 ImGui::TableNextRow();
                                 for (size_t j = 0; j < 3; j++) {
                                     ImGui::TableSetColumnIndex(j);
-                                    ImGui::Text("Fan %zu", j + 1);
-                                    ImGui::SliderInt(std::format("Fan {} {}", i + 1, j + 1).c_str(), &speed.per_fan[i][j], 20, 100);
-                                    if (ImGui::Selectable(std::format("Test {} {}", i, j).c_str(), selectedI == i && selectedJ == j)) {
-                                        selectedI = i;
-                                        selectedJ = j;
-                                        ImGui::OpenPopup("Fan Control");
+                                    ImGui::PushID(i * 4 + j);
+                                    if (ImGui::Button(std::format("Fan {} {}", i + 1, j + 1).c_str())) {
+                                        ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
                                     }
-                                    if (ImGui::BeginPopupContextItem()) {
-                                        int i = 1;
-                                        ImGui::Combo("Monitoring", &i, "CPU\0GPU\0");
-                                        ImGui::SetNextWindowSize(ImVec2(fb_width, fb_height));
-                                        selectedI = i;
-                                        selectedJ = j;
-                                        cur_fan = &fans[i][j];
-                                        ImPlot::CreateContext();
-                                        if (ImPlot::BeginPlot("Fan Control", ImVec2(-1 , -1), ImPlotFlags_NoLegend)) {
-                                            // Рисуем существующие точки
-                                            ImPlot::SetupLegend(ImPlotLocation_North);
-                                            ImPlot::SetupAxesLimits(0, 100, 0, 100);
-                                            if (!(*cur_fan).empty()) {
-                                                std::vector<float> xs, ys;
-                                                for (auto&& [x, y] : *cur_fan) {
-                                                    xs.push_back(x);
-                                                    ys.push_back(y);
-                                                }
-                                                ImPlot::PlotLine("Линия", xs.data(), ys.data(), (*cur_fan).size());
-                                                ImPlot::PlotScatter("Точки", xs.data(), ys.data(), (*cur_fan).size());
-                                            }
-
-                                            // Обработка кликов мыши
-                                            if (ImPlot::IsPlotHovered()) {
-                                                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                                                    ImPlotPoint mousePos = ImPlot::GetPlotMousePos(); // Получаем координаты мыши
-
-                                                    std::cout << mousePos.x << " " << mousePos.y << "\n";
-
-                                                    // Округляем координаты до ближайших значений, кратных 5
-                                                    float roundedX = round(mousePos.x / 10.0f) * 10.0f;
-                                                    float roundedY = round(mousePos.y / 10.0f) * 10.0f;
-
-                                                    // Проверяем, что координаты остаются в диапазоне [0, 100]
-                                                    if (roundedX >= 0.0f && roundedX <= 100.0f &&
-                                                        roundedY >= 0.0f && roundedY <= 100.0f) {
-                                                        (*cur_fan)[roundedX] = roundedY; // Добавляем или обновляем точку
-                                                    }
-                                                }
-                                                if(ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-                                                    ImPlotPoint mousePos = ImPlot::GetPlotMousePos(); // Получаем координаты мыши
-
-                                                    std::cout << mousePos.x << " " << mousePos.y << "\n";
-
-                                                    // Округляем координаты до ближайших значений, кратных 5
-                                                    float roundedX = round(mousePos.x / 10.0f) * 10.0f;
-                                                    float roundedY = round(mousePos.y / 10.0f) * 10.0f;
-
-                                                    // Проверяем, что координаты остаются в диапазоне [0, 100]
-                                                    if (roundedX >= 0.0f && roundedX <= 100.0f &&
-                                                        roundedY >= 0.0f && roundedY <= 100.0f) {
-                                                        std::erase_if(*cur_fan, [&roundedX](const auto& item) {
-                                                                      auto const& [k, v] = item;
-                                                                      return k == roundedX;
-                                                                      });
-                                                    }
-
-                                                }
-                                            }
-
-                                            ImPlot::EndPlot();
+                                    ImGui::SetNextWindowSize(ImVec2(fb_width, fb_height));
+                                    if (ImGui::BeginPopupModal("fctl")) {
+                                        ImGui::Combo("Monitoring", &cpu_or_gpu[5 * i + j], "CPU\0GPU\0");
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Close")) {
+                                            ImGui::CloseCurrentPopup();
                                         }
+                                        ImPlot::CreateContext();
+                                        print_plot(&fans[i][j]);
                                         ImPlot::DestroyContext();
                                         ImGui::EndPopup();
 
                                     }
+                                    ImGui::PopID();
                                 }
                             }
                             ImGui::EndTable();
@@ -827,52 +794,22 @@ int main(int argc, char** argv)
                     break;
             }
 
-            if (set_all) {
-                for (auto &s : speed.per_controller) {
-                    s = speed.all_speed;
+                if (set_all && ImGui::Button("Apply")) {
+                        wrapper.send_to_all_controllers(speed.all_speed);
                 }
+
+                if (!set_all && ImGui::Button("Save")) {
+                    conf.insert(fans, cpu_or_gpu);
+                }
+
+                ImGui::SameLine();
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+                ImGui::Text("Cpu temp: %d,  %s temp: %d", mon.get_cpu_temp(), mon.get_gpu_name().c_str(), mon.get_gpu_temp());
+
+                mon.update();
+
+                ImGui::End();
             }
-
-            if (ImGui::Button("Apply")) {
-                if (speed.mode == MODE::ALL) {
-                    wrapper.send_to_all_controllers(speed.all_speed);
-                }
-                else if (speed.mode == MODE::PER_CONTROLLER){
-                    for(size_t i = 0; i < 4; i++) {
-                        wrapper.send_to_controller(i, speed.per_controller[i]);
-                    }
-                }
-                else if (speed.mode == MODE::PER_FAN) {
-                    for (size_t i = 0; i < 4; i++) {
-                        for (size_t j = 0; j < 5; j++) {
-                            wrapper.sent_to_fan(i, j + 1, speed.per_fan[i][j]);
-                        }
-                    }
-                }
-            }
-            if (ImGui::Button("Save")) {
-                conf.insert(fans);
-            }
-
-            ImGui::SameLine();
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::Text("Cpu temp: %d,  %s temp: %d", mon.get_cpu_temp(), mon.get_gpu_name().c_str(), mon.get_gpu_temp());
-
-            mon.update();
-
-
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
 
         // Rendering
         ImGui::Render();
@@ -904,7 +841,6 @@ int main(int argc, char** argv)
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    /*pthread_join(gtk_thread, NULL);*/
     gtk_thread.join();
     speed_control.join();
 

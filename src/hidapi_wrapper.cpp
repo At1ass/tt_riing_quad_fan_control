@@ -91,10 +91,7 @@ hid_wrapper::device::get_fan_data ( unsigned char       port,
     | Send packet                                           |
     \*-----------------------------------------------------*/
     ret = hid_write(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
-    std::cout << "hid_write: " << ret << " | ";
     ret = hid_read_timeout(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
-    std::cout << "hid_read: " << ret << "\n";
-//    hid_read(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
 
     *speed = usb_buf[0x04];
     *rpm   = (usb_buf[0x06] << 8) + usb_buf[0x05];
