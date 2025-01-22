@@ -27,5 +27,6 @@ public:
         return is_cpu_or_gpu;
     }
     void insert(decltype(fans) fans, decltype(is_cpu_or_gpu) cpu_or_gpu);
+    void write_to_file(std::string_view path);
 };
 #endif // !__CONFIG_HPP__

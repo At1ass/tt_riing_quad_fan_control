@@ -26,6 +26,8 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <map>
@@ -376,7 +378,12 @@ static hid_wrapper wrapper;
 static config conf;
 static std::atomic<bool> need_get_fan_data = false;
 static std::atomic<bool> need_open_file_dialog = false;
+static std::atomic<bool> is_open = false;
 static std::atomic<bool> gtk_running = true;
+static std::string path;// = "/home/at1ass/.config/config.toml";
+std::vector<std::vector<std::map<float, float>>> fans;
+std::vector<int> cpu_or_gpu;
+std::mutex mutex;
 
 // Функция для закрытия программы
 static gboolean on_quit(GtkWidget *widget, gpointer data) {
@@ -436,11 +443,13 @@ void close_callback(GLFWwindow* window)
 }
 
 void open_file_dialog(gpointer data) {
-    GtkFileChooserAction action = (bool)data ? GTK_FILE_CHOOSER_ACTION_SAVE :
-                                            GTK_FILE_CHOOSER_ACTION_OPEN;
+    GtkFileChooserAction action = (bool)data ? GTK_FILE_CHOOSER_ACTION_OPEN :
+                                               GTK_FILE_CHOOSER_ACTION_SAVE;
+    std::string win_name = (bool)data ? "Open File" : "Save File";
+    std::cout << "--DATA--:" <<  (bool)data << std::endl;
     // Создание файла-диалога
     GtkWidget *dialog = gtk_file_chooser_dialog_new(
-        "Open File",                            // Заголовок окна
+        win_name.c_str(),                            // Заголовок окна
         NULL,                                   // Родительское окно (нет родительского)
         action,          // Режим диалога (открытие файла)
         "_Cancel", GTK_RESPONSE_CANCEL,        // Кнопка "Отмена"
@@ -450,9 +459,21 @@ void open_file_dialog(gpointer data) {
 
     // Показать диалог и обработать результат
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-        printf("Выбранный файл: %s\n", filename);
-        g_free(filename); // Освобождаем память
+        path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+
+        std::cout << "Выбранный файл: " << path << "\n";
+    }
+
+    if ((bool)data) {
+        conf.parse_config(path);
+        std::lock_guard lock(mutex);
+        fans = conf.get_fans_settings();
+        cpu_or_gpu = conf.get_cpu_or_gpu();
+
+    }
+    else {
+        conf.insert(fans, cpu_or_gpu);
+        conf.write_to_file(path);
     }
 
     // Уничтожаем диалог
@@ -465,18 +486,15 @@ void gtk_thread_func() {
     while (gtk_running.load()) {
         if (need_open_file_dialog.load()) {
             need_open_file_dialog.store(false);
-            g_idle_add((GSourceFunc)open_file_dialog, (gpointer)false);
+            g_idle_add((GSourceFunc)open_file_dialog, (gpointer)(is_open.load()));
         }
         gtk_main_iteration_do(FALSE);
     }
 }
 
 std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;
-std::mutex mutex;
 std::atomic<bool> running = true;
 monitoring mon;
-std::vector<std::vector<std::map<float, float>>> fans;
-std::vector<int> cpu_or_gpu;
 
 
 void change_speed_thread() {
@@ -487,6 +505,7 @@ void change_speed_thread() {
         mon.update();
         cpu_temp = round((float)mon.get_cpu_temp() / 5.0f) * 5.0f;
         gpu_temp = round((float)mon.get_gpu_temp() / 5.0f) * 5.0f;
+        mutex.lock();
         for (size_t d = 0; d < fans.size(); d++) {
             for (size_t f = 0; f < fans[d].size(); f++) {
                 pos = fans[d].size() * d + f;
@@ -495,6 +514,7 @@ void change_speed_thread() {
                                                     (uint)fans[d][f].find(cpu_temp)->second);
             }
         }
+        mutex.unlock();
         sleep(1);
     }
 }
@@ -618,9 +638,14 @@ int main(int argc, char** argv)
     speed.mode = MODE::PER_FAN;
 
     std::map<float, float> points;
+    std::string home_dir(getenv("HOME"));
+    path = home_dir + "/.config/config.toml";
 
-    conf.parse_config("/home/at1ass/.config/config.toml");
-    conf.print_config();
+    if (std::filesystem::exists(path)) {
+        conf.parse_config(path);
+        conf.print_config();
+    }
+
     ImVector<const char*> extensions;
     uint32_t extensions_count = 0;
     const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&extensions_count);
@@ -740,6 +765,11 @@ int main(int argc, char** argv)
                 if (ImGui::BeginMenu("File")) {
                     if (ImGui::MenuItem("Open")) {
                         need_open_file_dialog.store(true);
+                        is_open.store(true);
+                    }
+                    if (ImGui::MenuItem("Save to")) {
+                        need_open_file_dialog.store(true);
+                        is_open.store(false);
                     }
                     ImGui::EndMenu();
                 }
@@ -800,6 +830,7 @@ int main(int argc, char** argv)
 
                 if (!set_all && ImGui::Button("Save")) {
                     conf.insert(fans, cpu_or_gpu);
+                    conf.write_to_file(path);
                 }
 
                 ImGui::SameLine();

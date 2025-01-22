@@ -1,10 +1,12 @@
 #include "config.hpp"
 #include "toml.hpp"
 #include <array>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -43,6 +45,10 @@ void config::parse_config(std::string_view path) {
     }
 
     auto saved = config["saved"].as_array();
+    if (fans.size() != 0 || is_cpu_or_gpu.size() != 0) {
+        fans.clear();
+        is_cpu_or_gpu.clear();
+    }
     if (saved != nullptr) {
         readed = true;
         for (auto &&d : *saved) {
@@ -84,13 +90,16 @@ void config::print_config() {
     int j = 0;
     for (auto &&d : fans) {
         std::cout << "Controller " << i + 1 << ":\n";
+        j = 0;
         for (auto &&f : d) {
             std::cout << "Fan " << j + 1 << "(Monitoring " << (is_cpu_or_gpu[i * 4 + j] ? "GPU" : "CPU") <<"): [";
             for (auto &&[t, s] : f) {
                 std::cout << "[" << t <<", " << s << "] ";
             }
+            j++;
             std::cout << "]\n";
         }
+        i++;
     }
 }
 
@@ -118,8 +127,12 @@ void config::insert(decltype(fans) fans, decltype(is_cpu_or_gpu) cpu_or_gpu) {
 
     config.insert_or_assign("saved", saved);
 
+
+}
+
+void config::write_to_file(std::string_view path) {
     std::fstream out;
-    out.open("/home/at1ass/.config/config.toml", std::ios::out | std::ios::trunc);
+    out.open(path.data(), std::ios::out | std::ios::trunc);
     out  <<  toml::toml_formatter(config);
     out.close();
 
