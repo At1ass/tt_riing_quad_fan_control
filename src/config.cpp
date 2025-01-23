@@ -6,14 +6,24 @@
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 void config::parse_config(std::string_view path) {
-    config = toml::parse_file(path);
-    auto presets = config["presets"].as_array();
+
+    if (profiles == nullptr
+        || fans == nullptr
+        || is_cpu_or_gpu == nullptr) {
+        profiles = std::make_shared<std::map<std::string, std::vector<int>>>();
+        fans = std::make_shared<std::vector<std::vector<std::map<float, float>>>>();
+        is_cpu_or_gpu = std::make_shared<std::vector<int>>();
+    }
+
+    conf = toml::parse_file(path);
+    auto presets = conf["presets"].as_array();
 
     for (auto &&t : *presets) {
         toml::table* tbl = t.as_table();
@@ -41,13 +51,13 @@ void config::parse_config(std::string_view path) {
                             }
                       });
 
-        profiles.emplace(std::move(name), std::move(vals));
+        profiles->emplace(name, vals);
     }
 
-    auto saved = config["saved"].as_array();
-    if (fans.size() != 0 || is_cpu_or_gpu.size() != 0) {
-        fans.clear();
-        is_cpu_or_gpu.clear();
+    auto saved = conf["saved"].as_array();
+    if (fans->size() != 0 || is_cpu_or_gpu->size() != 0) {
+        fans->clear();
+        is_cpu_or_gpu->clear();
     }
     if (saved != nullptr) {
         readed = true;
@@ -57,7 +67,7 @@ void config::parse_config(std::string_view path) {
                 std::map<float, float> fd;
                 c.as_array()->for_each([=, this, &fd](auto& f) {
                                        if (toml::is_integer<decltype(f)>) {
-                                            is_cpu_or_gpu.push_back(f.as_integer()->get());
+                                            is_cpu_or_gpu->push_back(f.as_integer()->get());
                                        }
                                        if (toml::is_array<decltype(f)>) {
                                             std::array<float, 2> tmp;
@@ -70,7 +80,7 @@ void config::parse_config(std::string_view path) {
                 });
                 dd.insert(dd.cend(), fd);
             }
-            fans.insert(fans.cend(), dd);
+            fans->insert(fans->cend(), dd);
         }
         return;
     }
@@ -78,7 +88,7 @@ void config::parse_config(std::string_view path) {
 
 void config::print_config() {
     std::cout << "Parsed config\n";
-    for (auto &k : profiles) {
+    for (auto &k : *profiles) {
         std::cout << k.first << std::endl;
         for (auto &e : k.second) {
             std::cout << e << " ";
@@ -88,11 +98,11 @@ void config::print_config() {
 
     int i = 0;
     int j = 0;
-    for (auto &&d : fans) {
+    for (auto &&d : *fans) {
         std::cout << "Controller " << i + 1 << ":\n";
         j = 0;
         for (auto &&f : d) {
-            std::cout << "Fan " << j + 1 << "(Monitoring " << (is_cpu_or_gpu[i * 4 + j] ? "GPU" : "CPU") <<"): [";
+            std::cout << "Fan " << j + 1 << "(Monitoring " << ((*is_cpu_or_gpu)[i * 4 + j] ? "GPU" : "CPU") <<"): [";
             for (auto &&[t, s] : f) {
                 std::cout << "[" << t <<", " << s << "] ";
             }
@@ -103,19 +113,14 @@ void config::print_config() {
     }
 }
 
-std::map<std::string, std::vector<int>>
-config::get_profiles() {
-    return profiles;
-}
-
-void config::insert(decltype(fans) fans, decltype(is_cpu_or_gpu) cpu_or_gpu) {
+void config::update_conf() {
     toml::array saved;
     int i = 0;
-    for (auto &&d : fans) {
+    for (auto &&d : *fans) {
         toml::array controller;
         for (auto &&f : d) {
             toml::array fan;
-            fan.insert(fan.cend(), cpu_or_gpu[i++]);
+            fan.insert(fan.cend(), (*is_cpu_or_gpu)[i++]);
             for (auto &&[t, s] : f) {
                 toml::array stat{t, s};
                 fan.insert(fan.cend(), stat);
@@ -125,15 +130,14 @@ void config::insert(decltype(fans) fans, decltype(is_cpu_or_gpu) cpu_or_gpu) {
         saved.insert(saved.cend(), controller);
     }
 
-    config.insert_or_assign("saved", saved);
-
-
+    conf.insert_or_assign("saved", saved);
 }
 
 void config::write_to_file(std::string_view path) {
     std::fstream out;
+    update_conf();
+    print_config();
     out.open(path.data(), std::ios::out | std::ios::trunc);
-    out  <<  toml::toml_formatter(config);
+    out  <<  toml::toml_formatter(conf);
     out.close();
-
 }

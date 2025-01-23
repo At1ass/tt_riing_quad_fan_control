@@ -377,18 +377,17 @@ static GLFWwindow *window = NULL;
 static hid_wrapper wrapper;
 static config conf;
 static std::atomic<bool> need_get_fan_data = false;
-static std::atomic<bool> need_open_file_dialog = false;
-static std::atomic<bool> is_open = false;
+static bool need_open_file_dialog = false;
+static bool is_open = false;
 static std::atomic<bool> gtk_running = true;
 static std::string path;// = "/home/at1ass/.config/config.toml";
-std::vector<std::vector<std::map<float, float>>> fans;
-std::vector<int> cpu_or_gpu;
+std::shared_ptr<std::vector<std::vector<std::map<float, float>>>> fans;
+std::shared_ptr<std::vector<int>> cpu_or_gpu;
 std::mutex mutex;
 
 // Функция для закрытия программы
 static gboolean on_quit(GtkWidget *widget, gpointer data) {
-    /*gtk_main_quit(); // Закрытие GTK приложения*/
-    gtk_running.store(false);
+    gtk_main_quit(); // Закрытие GTK приложения
     glfwSetWindowShouldClose(window, TRUE);
     return FALSE;
 }
@@ -404,7 +403,7 @@ static void on_toggle_window(GtkWidget *widget, gpointer data) {
 }
 
 static void on_preset_clicked(GtkWidget *widget, gpointer data) {
-    auto vals = conf.get_profiles()[std::string((char *)data)];
+    auto vals = (*conf.get_profiles())[std::string((char *)data)];
     size_t i = 0;
 
     for (auto &v : vals) {
@@ -424,7 +423,7 @@ static void preset_section(GtkWidget **menu) {
 
     auto profiles = conf.get_profiles();
 
-    for (auto &[n, v] : profiles) {
+    for (auto &[n, v] : *profiles) {
         GtkWidget *toggle_item = gtk_menu_item_new_with_label((char *)n.c_str());
         g_signal_connect(toggle_item, "activate", G_CALLBACK(on_preset_clicked), strdup((char *)n.c_str()) );
         gtk_menu_shell_append(GTK_MENU_SHELL(*menu), toggle_item);
@@ -445,15 +444,15 @@ void close_callback(GLFWwindow* window)
 void open_file_dialog(gpointer data) {
     GtkFileChooserAction action = (bool)data ? GTK_FILE_CHOOSER_ACTION_OPEN :
                                                GTK_FILE_CHOOSER_ACTION_SAVE;
-    std::string win_name = (bool)data ? "Open File" : "Save File";
+    std::string win_name = (bool)data ? "Open" : "Save";
     std::cout << "--DATA--:" <<  (bool)data << std::endl;
     // Создание файла-диалога
     GtkWidget *dialog = gtk_file_chooser_dialog_new(
-        win_name.c_str(),                            // Заголовок окна
+        (win_name + " File").c_str(),                            // Заголовок окна
         NULL,                                   // Родительское окно (нет родительского)
         action,          // Режим диалога (открытие файла)
         "_Cancel", GTK_RESPONSE_CANCEL,        // Кнопка "Отмена"
-        "_Open", GTK_RESPONSE_ACCEPT,          // Кнопка "Открыть"
+        ("_" + win_name).c_str(), GTK_RESPONSE_ACCEPT,          // Кнопка "Открыть"
         NULL                                   // Завершаем аргументы
     );
 
@@ -466,13 +465,13 @@ void open_file_dialog(gpointer data) {
 
     if ((bool)data) {
         conf.parse_config(path);
+        conf.print_config();
         std::lock_guard lock(mutex);
         fans = conf.get_fans_settings();
         cpu_or_gpu = conf.get_cpu_or_gpu();
 
     }
     else {
-        conf.insert(fans, cpu_or_gpu);
         conf.write_to_file(path);
     }
 
@@ -482,14 +481,7 @@ void open_file_dialog(gpointer data) {
 
 // Поток для работы с GTK
 void gtk_thread_func() {
-    /*gtk_main();  // Запуск цикла GTK*/
-    while (gtk_running.load()) {
-        if (need_open_file_dialog.load()) {
-            need_open_file_dialog.store(false);
-            g_idle_add((GSourceFunc)open_file_dialog, (gpointer)(is_open.load()));
-        }
-        gtk_main_iteration_do(FALSE);
-    }
+    gtk_main();  // Запуск цикла GTK
 }
 
 std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;
@@ -498,6 +490,7 @@ monitoring mon;
 
 
 void change_speed_thread() {
+    using namespace std::chrono_literals;
     float cpu_temp;
     float gpu_temp;
     int pos;
@@ -506,16 +499,20 @@ void change_speed_thread() {
         cpu_temp = round((float)mon.get_cpu_temp() / 5.0f) * 5.0f;
         gpu_temp = round((float)mon.get_gpu_temp() / 5.0f) * 5.0f;
         mutex.lock();
-        for (size_t d = 0; d < fans.size(); d++) {
-            for (size_t f = 0; f < fans[d].size(); f++) {
-                pos = fans[d].size() * d + f;
-                wrapper.sent_to_fan(d, f + 1, cpu_or_gpu[pos] ?
-                                                    (uint)fans[d][f].find(gpu_temp)->second :
-                                                    (uint)fans[d][f].find(cpu_temp)->second);
+        for (size_t d = 0; d < fans->size(); d++) {
+            auto fan = &(*fans)[d];
+            for (size_t f = 0; f < fan->size(); f++) {
+                pos = fan->size() * d + f;
+                wrapper.sent_to_fan(d, f + 1, (*cpu_or_gpu)[pos] ?
+                                                    //(uint)fans[d][f].find(gpu_temp)->second :
+                                                    //(uint)fans[d][f].find(cpu_temp)->second);
+                                                    (uint)(*fan)[f].find(gpu_temp)->second :
+                                                    (uint)(*fan)[f].find(cpu_temp)->second);
             }
         }
         mutex.unlock();
         sleep(1);
+        std::this_thread::sleep_for(1s);
     }
 }
 
@@ -694,6 +691,7 @@ int main(int argc, char** argv)
     ImGui_ImplVulkan_Init(&init_info);
 
     glfwSetWindowCloseCallback(window, close_callback);
+    glfwHideWindow(window);  // Скрыть окно
     init_gtk(argc, argv);
 
     std::thread gtk_thread(gtk_thread_func);
@@ -703,23 +701,20 @@ int main(int argc, char** argv)
     unsigned short rpm;
     size_t cnum = wrapper.controllers_num();
 
+    fans = conf.get_fans_settings();
+    cpu_or_gpu = conf.get_cpu_or_gpu();
+
     if (!conf.is_readed()) {
         fan_data.resize(cnum, std::vector<std::pair<unsigned char, unsigned short>>(4));
-        fans.resize(cnum, std::vector<std::map<float, float>>(5));
-        cpu_or_gpu.resize(20, 0);
-        for (auto &&i : fans) {
+        fans->resize(cnum, std::vector<std::map<float, float>>(5));
+        cpu_or_gpu->resize(20, 0);
+        for (auto &&i : *fans) {
             for (auto &&j : i) {
                 for (size_t idx = 0; idx <= 100; idx+=10) {
                     j[idx] = 50;
                 }
             }
         }
-
-        conf.insert(fans, cpu_or_gpu);
-    }
-    else {
-        fans = conf.get_fans_settings();
-        cpu_or_gpu = conf.get_cpu_or_gpu();
     }
 
     speed.per_controller.resize(cnum);
@@ -764,12 +759,14 @@ int main(int argc, char** argv)
             if (ImGui::BeginMenuBar()) {
                 if (ImGui::BeginMenu("File")) {
                     if (ImGui::MenuItem("Open")) {
-                        need_open_file_dialog.store(true);
-                        is_open.store(true);
+                        need_open_file_dialog = true;
+                        is_open = true;
+                        g_idle_add((GSourceFunc)open_file_dialog, (gpointer)is_open);
                     }
                     if (ImGui::MenuItem("Save to")) {
-                        need_open_file_dialog.store(true);
-                        is_open.store(false);
+                        need_open_file_dialog = true;
+                        is_open = false;
+                        g_idle_add((GSourceFunc)open_file_dialog, (gpointer)is_open);
                     }
                     ImGui::EndMenu();
                 }
@@ -804,13 +801,13 @@ int main(int argc, char** argv)
                                     }
                                     ImGui::SetNextWindowSize(ImVec2(fb_width, fb_height));
                                     if (ImGui::BeginPopupModal("fctl")) {
-                                        ImGui::Combo("Monitoring", &cpu_or_gpu[5 * i + j], "CPU\0GPU\0");
+                                        ImGui::Combo("Monitoring", &(*cpu_or_gpu)[5 * i + j], "CPU\0GPU\0");
                                         ImGui::SameLine();
                                         if (ImGui::Button("Close")) {
                                             ImGui::CloseCurrentPopup();
                                         }
                                         ImPlot::CreateContext();
-                                        print_plot(&fans[i][j]);
+                                        print_plot(&(*fans)[i][j]);
                                         ImPlot::DestroyContext();
                                         ImGui::EndPopup();
 
@@ -829,7 +826,6 @@ int main(int argc, char** argv)
                 }
 
                 if (!set_all && ImGui::Button("Save")) {
-                    conf.insert(fans, cpu_or_gpu);
                     conf.write_to_file(path);
                 }
 

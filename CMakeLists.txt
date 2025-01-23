@@ -12,7 +12,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVK_PROTOTYPES")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES -O3")
 
 # GLFW
 set(GLFW_DIR 3rdparty/glfw) # Set this to point to an up-to-date GLFW repo
@@ -69,5 +69,5 @@ include_directories(${GLFW_DIR}/deps)
 file(GLOB sources *.cpp)
 
 add_executable(example_glfw_vulkan ${sources} ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/implot.cpp ${IMGUI_DIR}/implot_items.cpp ${SRC})
-target_link_libraries(example_glfw_vulkan ${LIBRARIES} ${GTK3_LIBRARIES} ${PC_AYATANA_APPINDICATOR_LIBRARIES} hidapi::hidapi WRAPPER_INCLUDE pthread nvidia-ml)
+target_link_libraries(example_glfw_vulkan ${LIBRARIES} ${GTK3_LIBRARIES} ${PC_AYATANA_APPINDICATOR_LIBRARIES} hidapi::hidapi WRAPPER_INCLUDE  nvidia-ml)
 
