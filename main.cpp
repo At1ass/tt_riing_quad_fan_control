@@ -381,8 +381,6 @@ static bool need_open_file_dialog = false;
 static bool is_open = false;
 static std::atomic<bool> gtk_running = true;
 static std::string path;// = "/home/at1ass/.config/config.toml";
-std::shared_ptr<std::vector<std::vector<std::map<float, float>>>> fans;
-std::shared_ptr<std::vector<int>> cpu_or_gpu;
 std::mutex mutex;
 
 // Функция для закрытия программы
@@ -467,8 +465,7 @@ void open_file_dialog(gpointer data) {
         conf.parse_config(path);
         conf.print_config();
         std::lock_guard lock(mutex);
-        fans = conf.get_fans_settings();
-        cpu_or_gpu = conf.get_cpu_or_gpu();
+        /*fans = conf.get_fans_settings();*/
 
     }
     else {
@@ -484,7 +481,7 @@ void gtk_thread_func() {
     gtk_main();  // Запуск цикла GTK
 }
 
-std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;
+/*std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;*/
 std::atomic<bool> running = true;
 monitoring mon;
 
@@ -499,16 +496,8 @@ void change_speed_thread() {
         cpu_temp = round((float)mon.get_cpu_temp() / 5.0f) * 5.0f;
         gpu_temp = round((float)mon.get_gpu_temp() / 5.0f) * 5.0f;
         mutex.lock();
-        for (size_t d = 0; d < fans->size(); d++) {
-            auto fan = &(*fans)[d];
-            for (size_t f = 0; f < fan->size(); f++) {
-                pos = fan->size() * d + f;
-                wrapper.sent_to_fan(d, f + 1, (*cpu_or_gpu)[pos] ?
-                                                    //(uint)fans[d][f].find(gpu_temp)->second :
-                                                    //(uint)fans[d][f].find(cpu_temp)->second);
-                                                    (uint)(*fan)[f].find(gpu_temp)->second :
-                                                    (uint)(*fan)[f].find(cpu_temp)->second);
-            }
+        for (auto x : conf.get_next_fan_data_by_temp(cpu_temp, gpu_temp)) {
+                wrapper.sent_to_fan(x.first.first, x.first.second + 1, x.second.second);
         }
         mutex.unlock();
         sleep(1);
@@ -701,20 +690,8 @@ int main(int argc, char** argv)
     unsigned short rpm;
     size_t cnum = wrapper.controllers_num();
 
-    fans = conf.get_fans_settings();
-    cpu_or_gpu = conf.get_cpu_or_gpu();
-
     if (!conf.is_readed()) {
-        fan_data.resize(cnum, std::vector<std::pair<unsigned char, unsigned short>>(4));
-        fans->resize(cnum, std::vector<std::map<float, float>>(5));
-        cpu_or_gpu->resize(20, 0);
-        for (auto &&i : *fans) {
-            for (auto &&j : i) {
-                for (size_t idx = 0; idx <= 100; idx+=10) {
-                    j[idx] = 50;
-                }
-            }
-        }
+        conf.init_dummy_fans(cnum);
     }
 
     speed.per_controller.resize(cnum);
@@ -801,13 +778,13 @@ int main(int argc, char** argv)
                                     }
                                     ImGui::SetNextWindowSize(ImVec2(fb_width, fb_height));
                                     if (ImGui::BeginPopupModal("fctl")) {
-                                        ImGui::Combo("Monitoring", &(*cpu_or_gpu)[5 * i + j], "CPU\0GPU\0");
+                                        ImGui::Combo("Monitoring", conf.get_fan_cpu_or_gpu(i, j), "CPU\0GPU\0");
                                         ImGui::SameLine();
                                         if (ImGui::Button("Close")) {
                                             ImGui::CloseCurrentPopup();
                                         }
                                         ImPlot::CreateContext();
-                                        print_plot(&(*fans)[i][j]);
+                                        print_plot(conf.get_fan_data(i, j));
                                         ImPlot::DestroyContext();
                                         ImGui::EndPopup();
 

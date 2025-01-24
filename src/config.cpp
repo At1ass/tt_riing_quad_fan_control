@@ -15,11 +15,9 @@
 void config::parse_config(std::string_view path) {
 
     if (profiles == nullptr
-        || fans == nullptr
-        || is_cpu_or_gpu == nullptr) {
+        || fans == nullptr) {
         profiles = std::make_shared<std::map<std::string, std::vector<int>>>();
-        fans = std::make_shared<std::vector<std::vector<std::map<float, float>>>>();
-        is_cpu_or_gpu = std::make_shared<std::vector<int>>();
+        fans = std::make_shared<std::vector<std::vector<std::pair<int, std::map<float, float>>>>>();
     }
 
     conf = toml::parse_file(path);
@@ -55,19 +53,19 @@ void config::parse_config(std::string_view path) {
     }
 
     auto saved = conf["saved"].as_array();
-    if (fans->size() != 0 || is_cpu_or_gpu->size() != 0) {
+    if (fans->size() != 0) {
         fans->clear();
-        is_cpu_or_gpu->clear();
     }
     if (saved != nullptr) {
         readed = true;
         for (auto &&d : *saved) {
-            std::vector<std::map<float, float>> dd;
+            std::vector<std::pair<int, std::map<float, float>>> dd;
             for (auto &&c : *d.as_array()) {
                 std::map<float, float> fd;
-                c.as_array()->for_each([=, this, &fd](auto& f) {
+                int mon;
+                c.as_array()->for_each([=, this, &fd, &mon](auto& f) {
                                        if (toml::is_integer<decltype(f)>) {
-                                            is_cpu_or_gpu->push_back(f.as_integer()->get());
+                                            mon = f.as_integer()->get();
                                        }
                                        if (toml::is_array<decltype(f)>) {
                                             std::array<float, 2> tmp;
@@ -78,11 +76,23 @@ void config::parse_config(std::string_view path) {
                                             fd[tmp[0]] = tmp[1];
                                        }
                 });
-                dd.insert(dd.cend(), fd);
+                dd.insert(dd.cend(), std::pair(mon, fd));
             }
             fans->insert(fans->cend(), dd);
         }
         return;
+    }
+}
+
+void config::init_dummy_fans(int cnum) {
+    fans->resize(cnum, std::vector<std::pair<int, std::map<float, float>>>(5));
+    for (auto &&i : *fans) {
+        for (auto &&j : i) {
+            for (size_t idx = 0; idx <= 100; idx+=5) {
+                j.first = 0;
+                j.second[idx] = 50;
+            }
+        }
     }
 }
 
@@ -102,12 +112,34 @@ void config::print_config() {
         std::cout << "Controller " << i + 1 << ":\n";
         j = 0;
         for (auto &&f : d) {
-            std::cout << "Fan " << j + 1 << "(Monitoring " << ((*is_cpu_or_gpu)[i * 4 + j] ? "GPU" : "CPU") <<"): [";
-            for (auto &&[t, s] : f) {
+            std::cout << "Fan " << j + 1 << "(Monitoring " << (f.first ? "GPU" : "CPU") <<"): [";
+            for (auto &&[t, s] : f.second) {
                 std::cout << "[" << t <<", " << s << "] ";
             }
             j++;
             std::cout << "]\n";
+        }
+        i++;
+    }
+}
+
+std::generator<const std::pair<float, float>&> config::get_next_fan_data(){
+    for(auto &&d : *fans) {
+        for (auto &&f : d) {
+            for (auto &&data : f.second) {
+                co_yield data;
+            }
+        }
+    }
+}
+
+std::generator<const std::pair<std::pair<int, int>, std::pair<float, float>>&> config::get_next_fan_data_by_temp(float cpu_temp, float gpu_temp){
+    int i = 0, j = 0;
+    for(auto &&d : *fans) {
+        for (auto &&f : d) {
+            auto data = f.second.find(f.first ? gpu_temp : cpu_temp);
+            co_yield {{i, j}, *data};
+            j++;
         }
         i++;
     }
@@ -120,8 +152,8 @@ void config::update_conf() {
         toml::array controller;
         for (auto &&f : d) {
             toml::array fan;
-            fan.insert(fan.cend(), (*is_cpu_or_gpu)[i++]);
-            for (auto &&[t, s] : f) {
+            fan.insert(fan.cend(), f.first);
+            for (auto &&[t, s] : f.second) {
                 toml::array stat{t, s};
                 fan.insert(fan.cend(), stat);
             }
