@@ -4,15 +4,16 @@
 #  cmake -g "Visual Studio 14 2015" ..
 
 cmake_minimum_required(VERSION 2.8)
-project(imgui_example_glfw_vulkan C CXX)
+project(tt_riing_fan_control C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+# set(CMAKE_CXX_STANDARD 23)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVK_PROTOTYPES")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES -O3")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES -std=c++23 -O0 -ggdb -DENABLE_INFO_LOGS")
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # GLFW
 set(GLFW_DIR 3rdparty/glfw) # Set this to point to an up-to-date GLFW repo
@@ -46,10 +47,9 @@ find_package(hidapi REQUIRED)
 
 # my wrapper
 #set(WRAPPER_INCLUDE ../include)
-file(GLOB SRC CONFIGURE_DEPENDS "src/*.cpp")
-#include_directories(${WRAPPER_SRC})
-add_library(WRAPPER_INCLUDE INTERFACE)
-target_include_directories(WRAPPER_INCLUDE INTERFACE ${CMAKE_SOURCE_DIR}/include)
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "src/*.cpp")
+add_library(HEADERS_INCLUDE INTERFACE)
+target_include_directories(HEADERS_INCLUDE INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
 
 # Dear ImGui
@@ -68,6 +68,6 @@ include_directories(${GLFW_DIR}/deps)
 
 file(GLOB sources *.cpp)
 
-add_executable(example_glfw_vulkan ${sources} ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/implot.cpp ${IMGUI_DIR}/implot_items.cpp ${SRC})
-target_link_libraries(example_glfw_vulkan ${LIBRARIES} ${GTK3_LIBRARIES} ${PC_AYATANA_APPINDICATOR_LIBRARIES} hidapi::hidapi WRAPPER_INCLUDE  nvidia-ml)
+add_executable(tt_riing_fan_control ${sources} ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/implot.cpp ${IMGUI_DIR}/implot_items.cpp ${SRC})
+target_link_libraries(tt_riing_fan_control ${LIBRARIES} ${GTK3_LIBRARIES} ${PC_AYATANA_APPINDICATOR_LIBRARIES} hidapi::hidapi HEADERS_INCLUDE nvidia-ml)
 

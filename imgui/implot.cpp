@@ -3920,8 +3920,10 @@ bool DragPoint(int n_id, double* x, double* y, const ImVec4& col, float radius, 
 
     bool modified = false;
     if (held && ImGui::IsMouseDragging(0)) {
-        *x = ImPlot::GetPlotMousePos(IMPLOT_AUTO,IMPLOT_AUTO).x;
-        *y = ImPlot::GetPlotMousePos(IMPLOT_AUTO,IMPLOT_AUTO).y;
+        if (flags & ImPlotDragToolFlags_DisableX)
+            *x = ImPlot::GetPlotMousePos(IMPLOT_AUTO,IMPLOT_AUTO).x;
+        if (flags & ImPlotDragToolFlags_DisableY)
+            *y = ImPlot::GetPlotMousePos(IMPLOT_AUTO,IMPLOT_AUTO).y;
         modified = true;
     }
 
