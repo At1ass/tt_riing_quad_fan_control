@@ -27,6 +27,7 @@ namespace core {
             for(auto &&f : c.getFans()) {
                 auto fd = f.getData().getData();
                 updateFanData(c.getIdx(), f.getIdx(), fd.first, fd.second);
+                updateFanMonitoringMode(c.getIdx(), f.getIdx(), f.getMonitoringMode() == sys::MONITORING_MODE::MONITORING_CPU ? 0 : 1);
             }
         }
     }
@@ -35,7 +36,15 @@ namespace core {
         system->getControllers()[controller_idx].getFans()[fan_idx].getData().updateData(temperatures, speeds);
 
         if(mediator) {
-            mediator->notify(EventMessageType::UpdateFan, Message{controller_idx, fan_idx, temperatures, speeds});
+            mediator->notify(EventMessageType::UpdateFan, std::make_shared<DataMessage>(DataMessage{controller_idx, fan_idx, temperatures, speeds}));
+        }
+    }
+
+    void FanController::updateFanMonitoringMode(int controller_idx, int fan_idx, const int& mode) {
+        system->getControllers()[controller_idx].getFans()[fan_idx].setMonitoringMode(mode == 0 ? sys::MONITORING_MODE::MONITORING_CPU : sys::MONITORING_MODE::MONITORING_GPU);
+
+        if(mediator) {
+            mediator->notify(EventMessageType::UpdateMonitoringModeFan, std::make_shared<ModeMessage>(ModeMessage{controller_idx, fan_idx, mode}));
         }
     }
 

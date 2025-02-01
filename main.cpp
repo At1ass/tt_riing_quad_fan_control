@@ -102,7 +102,7 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         gui->setMediator(mediator);
         fc->setMediator(mediator);
 
-        mediator->notify(EventMessageType::Initialize, Message{});
+        mediator->notify(EventMessageType::Initialize, std::make_shared<Message>(Message{}));
 
         gui->setCallbacks(
                 "onOpenFile", std::function<void(const std::string&)>([&](const std::string& filePath) {

@@ -53,7 +53,7 @@ namespace core {
                                 // Отправляем сообщение через медиатор
                                 mediator->notify(
                                         EventMessageType::UpdateGraph,
-                                        Message{ i, j, temperatures, speeds }
+                                        std::make_shared<DataMessage>(DataMessage{i, j, temperatures, speeds})
                                         );
                             }
                         }

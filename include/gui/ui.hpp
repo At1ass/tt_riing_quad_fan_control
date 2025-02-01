@@ -35,6 +35,12 @@ namespace gui {
                 const std::vector<double>& speeds
             );
 
+            void updateFanMonitoringMods(
+                int controller_idx,
+                int fan_idx,
+                const int& mode
+            );
+
             template <typename... Args>
                 void setCallbacks(Args&&... args) {
                     static_assert(sizeof...(args) % 2 == 0, "Callbacks must be provided as pairs of (name, callback)");
@@ -78,6 +84,7 @@ namespace gui {
             std::unordered_map<std::string, std::vector<GeneralCallback>> generalCallbacks;
             std::shared_ptr<core::FanMediator> mediator;
             std::unordered_map<int, std::pair<std::vector<double>, std::vector<double>>> graphData;
+            std::unordered_map<int, int> fanMods;
             std::unique_ptr<core::PlotStrategy> plot_stategy;
     };
 }

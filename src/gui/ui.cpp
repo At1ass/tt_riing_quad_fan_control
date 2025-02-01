@@ -2,6 +2,7 @@
 #include "GLFW/glfw3.h"
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
+#include "core/mediator.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "system/vulkan.hpp"
@@ -31,6 +32,10 @@ namespace gui {
         graphData[controller_idx * 10 + fan_idx] = {temperatures, speeds};
     }
 
+    void GuiManager::updateFanMonitoringMods(int controller_idx, int fan_idx, const int& mode) {
+        fanMods[controller_idx * 10 + fan_idx] = mode;
+    }
+
     GuiManager::GuiManager(const std::shared_ptr<GLFWwindow>& window) {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -55,6 +60,7 @@ namespace gui {
         {
             static float const f = 0.0F;
             static int const counter = 0;
+            const char* items[] = { "CPU", "GPU"};
 
             ImGui::SetNextWindowPos(ImVec2(0.0F, 0.0F));
             ImGui::SetNextWindowSize(ImVec2(1280, 720));
@@ -108,6 +114,23 @@ namespace gui {
                             ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
                         }
                         if (ImGui::BeginPopupModal("fctl")) {
+                            const char *current_item = items[fanMods[i * 10 + j]];
+                            if (ImGui::BeginCombo("custom combo", current_item, ImGuiComboFlags_NoArrowButton))
+                            {
+                                for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+                                {
+                                    bool is_selected = (current_item == items[n]);
+                                    if (ImGui::Selectable(items[n], is_selected)) {
+                                        current_item = items[n];
+                                        fanMods[i * 10 + j] = n;
+                                        mediator->notify(EventMessageType::UpdateMonitoringModeUi, std::make_shared<ModeMessage>(ModeMessage{static_cast<int>(i), static_cast<int>(j), n}));
+
+                                    }
+                                    if (is_selected)
+                                        ImGui::SetItemDefaultFocus();
+                                }
+                                ImGui::EndCombo();
+                            }
                             ImGui::SameLine();
                             if (ImGui::Button("Close")) {
                                 ImGui::CloseCurrentPopup();

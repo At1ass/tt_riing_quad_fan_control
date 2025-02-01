@@ -25,6 +25,7 @@ namespace core {
             void updateGPUfans(float temp);
             void reloadAllFans();
             void updateFanData(int controller_idx, int fan_idx, const std::vector<double>& temperatures, const std::vector<double>& speeds);
+            void updateFanMonitoringMode(int controller_idx, int fan_idx, const int& mode);
 
             std::vector<sys::Controller>& getAllFanData() {
                 return system->getControllers();
