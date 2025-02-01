@@ -1,11 +1,10 @@
-#ifndef __POINT_PLOT_STRATEGY__
-#define __POINT_PLOT_STRATEGY__
-#include "core/fan_mediator.hpp"
-#include "core/mediator.hpp"
+#ifndef __BEZIER_CURVE_PLOT_STRATEGY__
+#define __BEZIER_CURVE_PLOT_STRATEGY__
+
 #include "core/plotStrategy.hpp"
 
 namespace core {
-    class PointPlotStrategy : public PlotStrategy {
+    class BezierCurvePlotStrategy : public PlotStrategy {
         public:
             void plot(
                 int i,
@@ -16,4 +15,5 @@ namespace core {
             ) override;
     };
 }
-#endif // !__POINT_PLOT_STRATEGY__
+
+#endif // __BEZIER_CURVE_PLOT_STRATEGY__

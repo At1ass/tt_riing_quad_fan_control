@@ -1,8 +1,10 @@
 #include "gui/ui.hpp"
 #include "GLFW/glfw3.h"
+#include "core/bezierCurvePlotStrategy.hpp"
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "core/mediator.hpp"
+#include "core/pointPlotStrategy.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "system/vulkan.hpp"
@@ -101,6 +103,15 @@ namespace gui {
                     }
                 }
                 ImGui::EndMenuBar();
+            }
+
+            if (ImGui::Button("Point Plot")) {
+                setStrategy(std::make_unique<core::PointPlotStrategy>());
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Bezier Plot")) {
+                setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
             }
 
             if (ImGui::BeginTable("controllers", 5)) {
