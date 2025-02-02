@@ -27,12 +27,10 @@ namespace gui {
             void setStrategy(std::unique_ptr<core::PlotStrategy> strategy) {
                 plot_stategy = std::move(strategy);
             }
-
             void updateGraphData(
                 int controller_idx,
                 int fan_idx,
-                const std::vector<double>& temperatures,
-                const std::vector<double>& speeds
+                std::variant<fanData, std::array<std::pair<double, double>, 4>> data
             );
 
             void updateFanMonitoringMods(
@@ -84,6 +82,7 @@ namespace gui {
             std::unordered_map<std::string, std::vector<GeneralCallback>> generalCallbacks;
             std::shared_ptr<core::FanMediator> mediator;
             std::unordered_map<int, std::pair<std::vector<double>, std::vector<double>>> graphData;
+            std::unordered_map<int, std::array<std::pair<double, double>, 4>> bezierData;
             std::unordered_map<int, int> fanMods;
             std::unique_ptr<core::PlotStrategy> plot_stategy;
     };

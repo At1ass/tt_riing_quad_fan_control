@@ -136,6 +136,14 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
                     sys::Config::getInstance().updateConf(system);
                     sys::Config::getInstance().writeToFile(path);
                 }),
+                "onPointPlot", std::function<void()>([&]() {
+                    core::Logger::log_(core::LogLevel::INFO) << "Point Plot requested." << std::endl;
+                    fc->pointInfo();
+                }),
+                "onBezierPlot", std::function<void()>([&]() {
+                    core::Logger::log_(core::LogLevel::INFO) << "Point Plot requested." << std::endl;
+                    fc->bezierInfo();
+                }),
                 "onQuit", std::function<void()>([&]() {
                     core::Logger::log_(core::LogLevel::INFO) << "Quit requested." << std::endl;
                     win_manager->closeWindow();

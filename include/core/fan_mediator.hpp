@@ -14,9 +14,13 @@ namespace core {
     class Monitoring;
 }
 
-struct DataMessage : public Message {
+struct fanData{
     std::vector<double> t;
     std::vector<double> s;
+};
+
+struct DataMessage : public Message {
+    std::variant<fanData, std::array<std::pair<double, double>, 4>> data;
 };
 
 struct ModeMessage : public Message {

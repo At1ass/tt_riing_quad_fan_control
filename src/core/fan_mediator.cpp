@@ -6,6 +6,7 @@
 #include "system/config.hpp"
 #include <iostream>
 #include <memory>
+#include <variant>
 
 namespace core {
     void FanMediator::dispatch(EventMessageType eventType, std::shared_ptr<Message> msg)  {
@@ -42,7 +43,9 @@ namespace core {
             for (auto&& c : controllers) {
                 for(auto&& f : c.getFans()) {
                     auto data = f.getData();
-                    guiManager->updateGraphData(c.getIdx(), f.getIdx(), *data.getTData(), *data.getSData());
+                    guiManager->updateGraphData(c.getIdx(), f.getIdx(), fanData{*data.getTData(), *data.getSData()});
+                    auto bdata = f.getBData();
+                    guiManager->updateGraphData(c.getIdx(), f.getIdx(), bdata.getData());
                     guiManager->updateFanMonitoringMods(c.getIdx(), f.getIdx(), f.getMonitoringMode() == sys::MONITORING_MODE::MONITORING_CPU ? 0 : 1);
                 }
             }
@@ -53,15 +56,37 @@ namespace core {
 
     void FanMediator::handleUpdateGraph(std::shared_ptr<DataMessage> msg) {
         if (fanController) {
-            fanController->updateFanData(msg->c_idx, msg->f_idx, msg->t, msg->s);
-            Logger::log_(LogLevel::INFO) << "Fan data updated from GUI for controller " << msg->c_idx << " fan " << msg->f_idx << std::endl;
+            std::visit([&](auto&& arg) {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<T, fanData>) {
+                    auto data = std::get<fanData>(msg->data);
+                    fanController->updateFanData(msg->c_idx, msg->f_idx, data.t, data.s);
+                    Logger::log_(LogLevel::INFO) << "Fan data updated from GUI for controller " << msg->c_idx << " fan " << msg->f_idx << std::endl;
+                } else if constexpr (std::is_same_v<T, std::array<std::pair<double, double>, 4>>) {
+                    auto data = std::get<std::array<std::pair<double, double>, 4>>(msg->data);
+                    fanController->updateFanData(msg->c_idx, msg->f_idx, data);
+                    Logger::log_(LogLevel::INFO) << "Fan data updated from GUI for controller " << msg->c_idx << " fan " << msg->f_idx << std::endl;
+                }
+
+            }, msg->data);
         }
     }
 
     void FanMediator::handleUpdateFan(std::shared_ptr<DataMessage> msg) {
         if (guiManager) {
-            guiManager->updateGraphData(msg->c_idx, msg->f_idx, msg->t, msg->s);
-            Logger::log_(LogLevel::INFO) << "Graph data updated from FanController for controller" << msg->c_idx << " fan " << msg->f_idx << std::endl;
+            std::visit([&](auto&& arg) {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<T, fanData>) {
+                    auto data = std::get<fanData>(msg->data);
+                    guiManager->updateGraphData(msg->c_idx, msg->f_idx, fanData{data.t, data.s});
+                    Logger::log_(LogLevel::INFO) << "Graph data updated from FanController for controller" << msg->c_idx << " fan " << msg->f_idx << std::endl;
+                } else if constexpr (std::is_same_v<T, std::array<std::pair<double, double>, 4>>) {
+                    auto data = std::get<std::array<std::pair<double, double>, 4>>(msg->data);
+                    guiManager->updateGraphData(msg->c_idx, msg->f_idx, data);
+                    Logger::log_(LogLevel::INFO) << "Graph data updated from FanController for controller " << msg->c_idx << " fan " << msg->f_idx << std::endl;
+                }
+
+            }, msg->data);
         }
     }
 

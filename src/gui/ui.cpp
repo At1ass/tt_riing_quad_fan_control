@@ -4,6 +4,7 @@
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "core/mediator.hpp"
+#include "core/plotDrawVisitor.hpp"
 #include "core/pointPlotStrategy.hpp"
 #include "imgui.h"
 #include "implot.h"
@@ -30,8 +31,18 @@ namespace gui {
         this->mediator = std::move(mediator);
     }
 
-    void GuiManager::updateGraphData(int controller_idx, int fan_idx, const std::vector<double>& temperatures, const std::vector<double>& speeds) {
-        graphData[controller_idx * 10 + fan_idx] = {temperatures, speeds};
+    void GuiManager::updateGraphData(int controller_idx, int fan_idx, std::variant<fanData, std::array<std::pair<double, double>, 4>> data) {
+        std::visit([&](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, fanData>) {
+                auto d = std::get<fanData>(data);
+                graphData[controller_idx * 10 + fan_idx] = {d.t, d.s};
+            } else if constexpr (std::is_same_v<T, std::array<std::pair<double, double>, 4>>) {
+                auto d = std::get<std::array<std::pair<double, double>, 4>>(data);
+                bezierData[controller_idx * 10 + fan_idx] = d;
+            }
+
+        }, data);
     }
 
     void GuiManager::updateFanMonitoringMods(int controller_idx, int fan_idx, const int& mode) {
@@ -72,8 +83,6 @@ namespace gui {
                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize
                     );
 
-            ImGui::Text("Application average");
-
             if (ImGui::BeginMenuBar()) {
                 if (ImGui::BeginMenu("File")) {
                     if (ImGui::MenuItem("Open")) {
@@ -107,11 +116,21 @@ namespace gui {
 
             if (ImGui::Button("Point Plot")) {
                 setStrategy(std::make_unique<core::PointPlotStrategy>());
+                if (generalCallbacks.contains("onQuit") != 0u) {
+                    for (auto &&c : generalCallbacks["onPointPlot"]) {
+                        c();
+                    }
+                }
             }
 
             ImGui::SameLine();
             if (ImGui::Button("Bezier Plot")) {
                 setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
+                if (generalCallbacks.contains("onQuit") != 0u) {
+                    for (auto &&c : generalCallbacks["onBezierPlot"]) {
+                        c();
+                    }
+                }
             }
 
             if (ImGui::BeginTable("controllers", 5)) {
@@ -120,7 +139,7 @@ namespace gui {
                     for (size_t j = 0; j < 3; j++) {
                         ImGui::TableSetColumnIndex(j);
                         ImGui::PushID(i * 4 + j);
-                        if (ImGui::Button("Button")) {
+                        if (ImGui::Button("Fan speed curve settings")) {
                             core::Logger::log_(core::LogLevel::INFO) << "Button" << std::endl;
                             ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
                         }
@@ -196,6 +215,10 @@ namespace gui {
         auto data = graphData[i * 10 + j];
         auto temperatures = data.first;
         auto speeds = data.second;
-        plot_stategy->plot(i, j, temperatures, speeds, mediator);
+        auto bd = bezierData[i * 10 + j];
+
+        core::PlotDrawVisitor visitor(i, j, bd, temperatures, speeds, mediator);
+
+        plot_stategy->accept(visitor);
     }
 }

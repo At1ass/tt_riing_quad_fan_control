@@ -10,6 +10,11 @@
 #include <vector>
 
 namespace core {
+    enum class DATA_USE {
+        POINT,
+        BEZIER
+    };
+
     class FanController {
         public:
             FanController(const FanController &) = default;
@@ -25,7 +30,14 @@ namespace core {
             void updateGPUfans(float temp);
             void reloadAllFans();
             void updateFanData(int controller_idx, int fan_idx, const std::vector<double>& temperatures, const std::vector<double>& speeds);
+            void updateFanData(int controller_idx, int fan_idx, const std::array<std::pair<double, double>, 4>& bdata);
             void updateFanMonitoringMode(int controller_idx, int fan_idx, const int& mode);
+            void pointInfo() {
+                dataUse = DATA_USE::POINT;
+            }
+            void bezierInfo() {
+                dataUse = DATA_USE::BEZIER;
+            }
 
             std::vector<sys::Controller>& getAllFanData() {
                 return system->getControllers();
@@ -38,6 +50,7 @@ namespace core {
             }
             void updateFans(sys::MONITORING_MODE mode, float temp);
 
+            DATA_USE dataUse = DATA_USE::POINT;
             std::shared_ptr<sys::System> system;
             std::shared_ptr<sys::HidWrapper> wrapper;
             std::shared_ptr<FanMediator> mediator;

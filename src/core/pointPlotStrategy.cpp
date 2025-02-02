@@ -1,4 +1,5 @@
 #include "core/pointPlotStrategy.hpp"
+#include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "implot.h"
 
@@ -9,11 +10,13 @@ namespace core {
             void PointPlotStrategy::plot(
                 int i,
                 int j,
-                std::vector<double>& temperatures,
-                std::vector<double>& speeds,
+                std::variant<fanData, std::array<std::pair<double, double>, 4>> data,
                 std::shared_ptr<core::FanMediator> mediator
             )
             {
+                auto d = std::get<fanData>(data);
+                auto temperatures = d.t;
+                auto speeds = d.s;
                 if (ImPlot::BeginPlot("Fan Control", ImVec2(-1, -1),
                             ImPlotFlags_NoLegend | ImPlotFlags_NoMenus))
                 {
@@ -55,7 +58,7 @@ namespace core {
                                 // Отправляем сообщение через медиатор
                                 mediator->notify(
                                         EventMessageType::UpdateGraph,
-                                        std::make_shared<DataMessage>(DataMessage{i, j, temperatures, speeds})
+                                        std::make_shared<DataMessage>(DataMessage{i, j, fanData{temperatures, speeds}})
                                         );
                             }
                         }

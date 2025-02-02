@@ -7,12 +7,17 @@ cmake_minimum_required(VERSION 2.8)
 project(tt_riing_fan_control C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+  message(FATAL_ERROR "Не задан тип сборки! Укажите CMAKE_BUILD_TYPE.")
 endif()
 
-# set(CMAKE_CXX_STANDARD 23)
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND
+   NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+  message(FATAL_ERROR "Неверный тип сборки: ${CMAKE_BUILD_TYPE}. Допустимые типы: Debug, Release")
+endif()
+
+set(CMAKE_CXX_STANDARD 23)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVK_PROTOTYPES")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES -std=c++23 -O0 -ggdb -DENABLE_INFO_LOGS")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_PROTOTYPES -std=c++23 -fno-rtti ")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # GLFW
@@ -70,4 +75,8 @@ file(GLOB sources *.cpp)
 
 add_executable(tt_riing_fan_control ${sources} ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/implot.cpp ${IMGUI_DIR}/implot_items.cpp ${SRC})
 target_link_libraries(tt_riing_fan_control ${LIBRARIES} ${GTK3_LIBRARIES} ${PC_AYATANA_APPINDICATOR_LIBRARIES} hidapi::hidapi HEADERS_INCLUDE nvidia-ml)
+target_compile_options(tt_riing_fan_control PRIVATE
+    $<$<CONFIG:Debug>:-O0 -ggdb -DENABLE_INFO_LOGS>
+    $<$<CONFIG:Release>:-O3>
+)
 

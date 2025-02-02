@@ -3,6 +3,7 @@
 #include "implot.h"
 
 #include <algorithm>
+#include <array>
 
 static ImPlotPoint BezierGenerator(int idx, void* user_data) {
     double t = (double)idx / 100.0;  // t ∈ [0, 1]
@@ -12,11 +13,12 @@ static ImPlotPoint BezierGenerator(int idx, void* user_data) {
     double uuu = uu * u;
     double ttt = tt * t;
 
-    double (*points)[2] = static_cast<double (*)[2]>(user_data);
+    auto points = *static_cast<std::array<std::pair<double, double>, 4>*>(user_data);
+
 
     ImPlotPoint P;
-    P.x = uuu * points[0][0] + 3 * uu * t * points[1][0] + 3 * u * tt * points[2][0] + ttt * points[3][0];
-    P.y = uuu * points[0][1] + 3 * uu * t * points[1][1] + 3 * u * tt * points[2][1] + ttt * points[3][1];
+    P.x = uuu * points[0].first + 3 * uu * t * points[1].first + 3 * u * tt * points[2].first + ttt * points[3].first;
+    P.y = uuu * points[0].second + 3 * uu * t * points[1].second + 3 * u * tt * points[2].second + ttt * points[3].second;
 
     return P;
 }
@@ -33,30 +35,48 @@ namespace core {
             void BezierCurvePlotStrategy::plot(
                 int i,
                 int j,
-                std::vector<double>& temperatures,
-                std::vector<double>& speeds,
+                std::variant<fanData, std::array<std::pair<double, double>, 4>> data,
                 std::shared_ptr<core::FanMediator> mediator
             )
             {
-                if (ImPlot::BeginPlot("Bezier Curve (PlotLineG)", ImVec2(-1, -1),
+                auto cp = std::get<std::array<std::pair<double, double>, 4>>(data);
+                if (ImPlot::BeginPlot("Fan Control (Bezier Curve) ", ImVec2(-1, -1),
                             ImPlotFlags_NoLegend | ImPlotFlags_NoMenus)) {
                     ImPlot::SetupAxes("X", "Y", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
                     ImPlot::SetupAxesLimits(0, 100, 0, 100);
 
-                    ImPlot::PlotLineG("Bezier Curve", BezierGenerator, controlPoints, 101);
+                    ImPlot::PlotLineG("Bezier Curve", BezierGenerator, &cp, 101);
 
-                    double segment1X[2] = { controlPoints[0][0], controlPoints[1][0] };
-                    double segment1Y[2] = { controlPoints[0][1], controlPoints[1][1] };
+                    double segment1X[2] = { cp[0].first, cp[1].first };
+                    double segment1Y[2] = { cp[0].second, cp[1].second };
                     ImPlot::PlotLine("Segment 1", segment1X, segment1Y, 2);
 
-                    double segment2X[2] = { controlPoints[2][0], controlPoints[3][0] };
-                    double segment2Y[2] = { controlPoints[2][1], controlPoints[3][1] };
+                    double segment2X[2] = { cp[2].first, cp[3].first };
+                    double segment2Y[2] = { cp[2].second, cp[3].second };
                     ImPlot::PlotLine("Segment 2", segment2X, segment2Y, 2);
 
                     for (int idx = 1; idx < 3; idx++) {
-                        if (ImPlot::DragPoint(idx, &controlPoints[idx][0], &controlPoints[idx][1], ImVec4(1, 0, 0, 1), 4)) {
-                            controlPoints[idx][0] = std::clamp(controlPoints[idx][0], 10.0, 90.0);
-                            controlPoints[idx][1] = std::clamp(controlPoints[idx][1], 10.0, 90.0);
+                        if (ImPlot::DragPoint(idx, &cp[idx].first, &cp[idx].second, ImVec4(1, 0, 0, 1), 4)) {
+                            cp[idx].first = std::clamp(cp[idx].first, 0.0, 100.0);
+                            cp[idx].second = std::clamp(cp[idx].second, 0.0, 100.0);
+                            if (mediator) {
+                                std::ostringstream log_str;
+
+                                log_str << "Control points: [ ";
+                                for (auto &&[x, y] : cp) {
+                                    log_str << "[ " << x << ", " << y << " ] ";
+                                }
+                                log_str << "]" << std::endl;
+
+                                // Логируем
+                                Logger::log_(LogLevel::INFO) << log_str.str() << std::endl;
+
+                                // Отправляем сообщение через медиатор
+                                mediator->notify(
+                                        EventMessageType::UpdateGraph,
+                                        std::make_shared<DataMessage>(DataMessage{i, j, cp})
+                                        );
+                            }
                         }
                     }
 

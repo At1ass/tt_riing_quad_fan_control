@@ -57,6 +57,7 @@ namespace sys {
             hid_init();
             readControllers();
             initControllers();
+            showControllersInfo();
         }
         size_t controllersNum() { return controllers.size(); }
         void sendToController(int controller_id, uint value);
@@ -76,6 +77,7 @@ namespace sys {
         void readControllers();
         void initControllers();
         void closeControllers();
+        void showControllersInfo();
 
         std::array<int, 4> pids{0};
         std::vector<Device> controllers;

@@ -126,11 +126,13 @@ namespace sys {
 
             hid_get_manufacturer_string(dev, name_string, HID_MAX_STR);
 
+            printf("Name %ls\n", name_string);
             std::wprintf(L"Name: %s\n", name_string);
 
             hid_get_product_string(dev, name_string, HID_MAX_STR);
 
             std::wprintf(L"Prod Name: %s\n", name_string);
+            printf("Prod Name: %ls\n", name_string);
 
             for (size_t fan_index = 0; fan_index < THERMALTAKE_NUM_CHANNELS; fan_index++) {
                 unsigned char speed = 0;
@@ -165,6 +167,12 @@ namespace sys {
         fan_data.resize(pids.size(), std::vector<std::pair<unsigned char, unsigned short>>(5));
 
         hid_free_enumeration(devs);
+    }
+
+    void HidWrapper::showControllersInfo() {
+        for (auto &c : controllers) {
+            c.showInfo();
+        }
     }
 
     void HidWrapper::initControllers() {

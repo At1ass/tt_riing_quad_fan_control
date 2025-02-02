@@ -36,7 +36,21 @@ namespace core {
         system->getControllers()[controller_idx].getFans()[fan_idx].getData().updateData(temperatures, speeds);
 
         if(mediator) {
-            mediator->notify(EventMessageType::UpdateFan, std::make_shared<DataMessage>(DataMessage{controller_idx, fan_idx, temperatures, speeds}));
+            mediator->notify(
+                EventMessageType::UpdateFan,
+                std::make_shared<DataMessage>(DataMessage{controller_idx, fan_idx, fanData{temperatures, speeds}})
+            );
+        }
+    }
+
+    void FanController::updateFanData(int controller_idx, int fan_idx, const std::array<std::pair<double, double>, 4>& bdata) {
+        system->getControllers()[controller_idx].getFans()[fan_idx].getBData().setData(bdata);
+
+        if(mediator) {
+            mediator->notify(
+                EventMessageType::UpdateFan,
+                std::make_shared<DataMessage>(DataMessage{controller_idx, fan_idx, bdata})
+            );
         }
     }
 
@@ -54,16 +68,15 @@ namespace core {
         for(auto &&c : system->getControllers()) {
             for(auto &&f : c.getFans()) {
                 if (f.getMonitoringMode() == mode) {
-                    auto d = f.getData().getData();
-
-                    for (auto &&[t, s] : std::views::zip(d.first, d.second)) {
-                        if (to5(temp) == to5(t)) {
-                            wrapper->sentToFan(c.getIdx(), f.getIdx() + 1, s);
-                            log_str << "Mode " << (mode == sys::MONITORING_MODE::MONITORING_GPU) << " Controller " << c.getIdx() << " Fan " << f.getIdx() \
-                                << " set speed " << s << " on temp " << temp << '\n';
-                            break;
-                        }
+                    double s;
+                    if (dataUse == DATA_USE::POINT) {
+                        s = f.getData().getSpeedForTemp(temp);
+                    } else {
+                        s = f.getBData().getSpeedForTemp(temp);
                     }
+                    wrapper->sentToFan(c.getIdx(), f.getIdx() + 1, s);
+                    log_str << "Mode " << (mode == sys::MONITORING_MODE::MONITORING_GPU) << " Controller " << c.getIdx() << " Fan " << f.getIdx() \
+                        << " set speed " << s << " on temp " << temp << '\n';
                 }
             }
         }

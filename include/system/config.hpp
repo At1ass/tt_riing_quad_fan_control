@@ -19,16 +19,31 @@ namespace sys {
             std::vector<double>* getTData();
             std::vector<double>* getSData();
             std::pair<std::vector<double>, std::vector<double>> getData();
-
+            double getSpeedForTemp(const float& temp);
         private:
             std::vector<double> temps;
             std::vector<double> speeds;
     };
 
+    class FanBezierData {
+        public:
+            void addControlPoint(const std::pair<double, double>& cp);
+            auto getData() -> std::array<std::pair<double, double>, 4>& ;
+            void setData(const std::array<std::pair<double, double>, 4>& data) ;
+            double getSpeedForTemp(const float& temp);
+        private:
+            std::pair<double, double> ComputeBezierAtT(double t) ;
+
+            int idx = 0;
+            std::array<std::pair<double, double>, 4> controlPoints;
+    };
+
     class Fan {
         public:
             void addData(const FanSpeedData &data);
+            void addBData(const FanBezierData &bdata);
             FanSpeedData& getData() { return data; }
+            FanBezierData& getBData() { return bdata; }
             void setMonitoringMode(const MONITORING_MODE mode);
             MONITORING_MODE getMonitoringMode() { return monitoring_mode; }
             void setIdx(size_t i) {idx = i;}
@@ -37,6 +52,7 @@ namespace sys {
             MONITORING_MODE monitoring_mode;
             size_t idx;
             FanSpeedData data;
+            FanBezierData bdata;
     };
 
     class Controller {
