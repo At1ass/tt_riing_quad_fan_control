@@ -1,0 +1,13 @@
+# uninstall.cmake.in
+
+if(NOT EXISTS "@INSTALL_MANIFEST@")
+  message(FATAL_ERROR "Install manifest not found. Run 'make install' first.")
+endif()
+
+file(READ "@INSTALL_MANIFEST@" files)
+string(REPLACE "\n" ";" filesList "${files}")
+
+foreach(file ${filesList})
+  message(STATUS "Removing file: ${file}")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E remove "${file}")
+endforeach()
