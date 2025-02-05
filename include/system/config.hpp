@@ -89,6 +89,9 @@ namespace sys {
                 static Config instance;
                 return instance;
             }
+            int getControllersNum() {
+                return controllers_num;
+            }
             std::shared_ptr<sys::System> parseConfig(std::string_view path);
             void initDummyFans(const std::shared_ptr<sys::System>& system) const;
             static void printConfig(const std::shared_ptr<sys::System>& system);

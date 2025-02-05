@@ -8,6 +8,7 @@
 #include "core/pointPlotStrategy.hpp"
 #include "imgui.h"
 #include "implot.h"
+#include "system/config.hpp"
 #include "system/vulkan.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -134,7 +135,7 @@ namespace gui {
             }
 
             if (ImGui::BeginTable("controllers", 5)) {
-                for (size_t i = 0; i < 4; i++) {
+                for (size_t i = 0; i < sys::Config::getInstance().getControllersNum(); i++) {
                     ImGui::TableNextRow();
                     for (size_t j = 0; j < 3; j++) {
                         ImGui::TableSetColumnIndex(j);
