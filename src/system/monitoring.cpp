@@ -2,6 +2,7 @@
 #include "core/logger.hpp"
 #include "core/observer.hpp"
 /*#include "nvml.h"*/
+#include "system/amd.hpp"
 #include "system/file_utils.hpp"
 #include "system/nvidia.hpp"
 #include <algorithm>
@@ -10,6 +11,7 @@
 #include <cstdio>
 #include <dirent.h>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <sys/stat.h>
@@ -172,7 +174,7 @@ namespace sys {
                             } else if (vendorId == "0x1002" || vendorId == "0x1022") {
                                 core::Logger::log_(core::LogLevel::ERROR) << entry.path().filename().string()
                                     << " -> AMD\n";
-                                throw std::runtime_error("AMD GPU not supported");
+                                gpu = std::make_unique<AMD>(entry.path().filename().string());
                             } else if (vendorId == "0x8086") {
                                 core::Logger::log_(core::LogLevel::ERROR) << entry.path().filename().string()
                                     << " -> Intel\n";
