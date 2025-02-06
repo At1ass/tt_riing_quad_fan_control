@@ -54,7 +54,6 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         win_manager->setOnCloseCallback([&](){
             core::Logger::log_(core::LogLevel::INFO) << "Window closed via close button." << std::endl;
             win_manager->hideWindow();
-            /*tray_manager->stop();*/
         });
 
         std::shared_ptr<sys::System> system;
@@ -127,8 +126,8 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
                             mon.fullUpdate();
                             fc->reloadAllFans();
                         }
-                        catch (std::exception e) {
-                            core::Logger::log_(core::LogLevel::ERROR) << "Failed reading config" << e.what() << std::endl;
+                        catch (const std::exception& e) {
+                            core::Logger::log_(core::LogLevel::ERROR) << "Failed reading config: " << e.what() << std::endl;
                         }
                     });
                     core::Logger::log_(core::LogLevel::INFO) << "Opening file: " << filePath << std::endl;

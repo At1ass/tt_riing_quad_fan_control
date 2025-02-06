@@ -11,7 +11,6 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 # Global compile definitions
 add_compile_definitions(VK_PROTOTYPES)
 
@@ -87,7 +86,6 @@ target_link_libraries(tt_riing_quad_fan_control
     ${AYATANA_LIBRARIES}
     hidapi::hidapi
     HEADERS_INCLUDE
-    nvidia-ml
 )
 
 # --- Compiler options based on build type ---

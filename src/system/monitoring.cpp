@@ -1,14 +1,17 @@
 #include "system/monitoring.hpp"
 #include "core/logger.hpp"
 #include "core/observer.hpp"
-#include "nvml.h"
+/*#include "nvml.h"*/
 #include "system/file_utils.hpp"
+#include "system/nvidia.hpp"
 #include <algorithm>
 #include <bits/chrono.h>
 #include <cmath>
 #include <cstdio>
 #include <dirent.h>
+#include <filesystem>
 #include <mutex>
+#include <stdexcept>
 #include <sys/stat.h>
 #include <regex>
 
@@ -136,56 +139,12 @@ namespace sys {
         return ret;
     }
 
-    auto Monitoring::initNvml() -> bool {
-        nvmlReturn_t result;
-        char name[NVML_DEVICE_NAME_BUFFER_SIZE];
-        int ret = 0;
-
-        result = nvmlInit();
-        if (NVML_SUCCESS != result) {
-            core::Logger::log_(core::LogLevel::ERROR) << "Failed to initialize NVML: " << nvmlErrorString(result) << '\n';
-            return false;
-        }
-
-        result = nvmlDeviceGetHandleByIndex(0, &device);
-        if (NVML_SUCCESS != result) {
-            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get handle for device: " << nvmlErrorString(result) << '\n';
-            return false;
-        }
-
-        result = nvmlDeviceGetName(device, name, NVML_DEVICE_NAME_BUFFER_SIZE);
-        if (NVML_SUCCESS != result) {
-            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get name of device:" << nvmlErrorString(result) << '\n';
-            return false;
-        }
-
-        gpu_name = std::string(name);
-
-        return true;
-    }
-
-    auto Monitoring::readGpuTemp(unsigned int &temp) -> bool {
-        nvmlReturn_t result;
-
-        result = nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &temp);
-        if (NVML_SUCCESS != result) {
-            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get gpu temp: " << nvmlErrorString(result) << '\n';
-            return false;
-        }
-
-        return true;
-    }
-
     auto Monitoring::getGpuName() -> std::string {
-        return gpu_name;
+        return gpu->getGPUName();
     }
 
     auto Monitoring::getCpuName() -> std::string {
         return cpu_name;
-    }
-
-    void Monitoring::closeNvml() {
-        nvmlShutdown();
     }
 
     Monitoring::Monitoring() {
@@ -193,10 +152,44 @@ namespace sys {
 
         getCpuFile();
         cpuInfoCpuName();
-        ret = initNvml();
-        if (!ret) {
-            throw std::runtime_error("Failed get NVIDIA device");
+
+        namespace fs = std::filesystem;
+        try {
+            for (const auto &entry : fs::directory_iterator("/sys/class/drm")) {
+                // Обычно нас интересуют директории вида card0, card1 и т.д.
+                if (entry.is_directory() && entry.path().filename().string().rfind("card", 0) == 0) {
+                    // Пути вида /sys/class/drm/card0/device/vendor
+                    auto vendorFile = entry.path() / "device" / "vendor";
+                    if (fs::exists(vendorFile)) {
+                        std::ifstream fin(vendorFile);
+                        if (fin.is_open()) {
+                            std::string vendorId;
+                            fin >> vendorId; // например, "0x10de"
+                            if (vendorId == "0x10de") {
+                                core::Logger::log_(core::LogLevel::INFO) << entry.path().filename().string()
+                                    << " -> NVIDIA\n";
+                                gpu = std::make_unique<Nvidia>();
+                            } else if (vendorId == "0x1002" || vendorId == "0x1022") {
+                                core::Logger::log_(core::LogLevel::ERROR) << entry.path().filename().string()
+                                    << " -> AMD\n";
+                                throw std::runtime_error("AMD GPU not supported");
+                            } else if (vendorId == "0x8086") {
+                                core::Logger::log_(core::LogLevel::ERROR) << entry.path().filename().string()
+                                    << " -> Intel\n";
+                                throw std::runtime_error("Intel GPU not supported");
+                            } else {
+                                std::cout << entry.path().filename().string()
+                                    << " -> Unknown vendor: " << vendorId << "\n";
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            core::Logger::log_(core::LogLevel::INFO) << "Failed initialize GPU: " << e.what() << std::endl;
+
         }
+
         update();
         start();
     }
@@ -205,7 +198,6 @@ namespace sys {
         if (cpu_file != nullptr) {
             fclose(cpu_file);
         }
-        closeNvml();
         stop();
     }
 
@@ -259,7 +251,7 @@ namespace sys {
         int temp = 0;
         unsigned int gtemp = 0;
         bool ret = readCpuTempFile(temp);
-        ret = readGpuTemp(gtemp);
+        ret = gpu->readGPUTemp(gtemp);
         if (full_update.load()) {
             notifyTempChanged(temp, core::EventType::CPU_TEMP_CHANGED);
             notifyTempChanged(gtemp, core::EventType::GPU_TEMP_CHANGED);

@@ -189,6 +189,8 @@ namespace sys {
                         fan.addData(data);
                         fan.addBData(bdata);
                         controller.addFan(fan);
+                    } else {
+                        throw std::runtime_error("Incorrect fan data");
                     }
                 });
                 system->addController(controller);

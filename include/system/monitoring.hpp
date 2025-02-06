@@ -1,8 +1,8 @@
 #ifndef __MONITORING_HPP__
 #define __MONITORING_HPP__
 
-#include "nvml.h"
 #include "core/observer.hpp"
+#include "system/gpu.hpp"
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -10,6 +10,7 @@
 #include <vector>
 
 namespace sys {
+
     class Monitoring {
         public:
             Monitoring();
@@ -32,12 +33,9 @@ namespace sys {
             void monitoringLoop();
             void update();
             bool getCpuFile();
-            bool initNvml();
-            static void closeNvml();
             bool readGpuTemp(unsigned int &temp);
             bool readCpuTempFile(int &temp);
 
-            nvmlDevice_t device{};
             FILE *cpu_file = NULL;
             int cpu_temp{};
             int gpu_temp{};
@@ -49,6 +47,7 @@ namespace sys {
             std::mutex observer_lock;
             std::mutex temp_lock;
             std::vector<std::shared_ptr<core::Observer>> observers;
+            std::unique_ptr<GPU> gpu;
     };
 }
 #endif // !__MONITORING_HPP__
