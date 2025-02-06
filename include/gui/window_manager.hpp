@@ -20,10 +20,11 @@ namespace gui {
             static void pollEvents();
             void createOrResize();
             void showWindow();
+            bool windowHided();
             void createFramebuffers();
             static void cleanup();
-            void getWindowSize(int& w, int& h);
             void setOnCloseCallback(Callback cb);
+            std::pair<int, int> getWindowSize();
             std::shared_ptr<GLFWwindow> getWindow ();
         private:
 

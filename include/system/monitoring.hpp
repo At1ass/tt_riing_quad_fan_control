@@ -20,11 +20,13 @@ namespace sys {
             void removeObserver(std::shared_ptr<core::Observer> observer);
             void notifyTempChanged(float temp, core::EventType event);
             void fullUpdate();
-            int getCpuTemp() const;
+            int getCpuTemp();
             std::string getGpuName();
-            int getGpuTemp() const;
+            std::string getCpuName();
+            int getGpuTemp();
 
         private:
+            void cpuInfoCpuName();
             void start();
             void stop();
             void monitoringLoop();
@@ -40,10 +42,12 @@ namespace sys {
             int cpu_temp{};
             int gpu_temp{};
             std::string gpu_name;
+            std::string cpu_name;
             std::atomic<bool> running = true;
             std::atomic<bool> full_update = false;
             std::thread monitoring_thread;
             std::mutex observer_lock;
+            std::mutex temp_lock;
             std::vector<std::shared_ptr<core::Observer>> observers;
     };
 }

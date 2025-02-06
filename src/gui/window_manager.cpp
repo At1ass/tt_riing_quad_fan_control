@@ -34,6 +34,7 @@ namespace gui {
 
         glfwSetWindowCloseCallback(window.get(), +[](GLFWwindow* window) {
             core::Logger::log_(core::LogLevel::INFO) << "Close Callback" << std::endl;
+            glfwSetWindowShouldClose(window, false);
             auto* manager = static_cast<WindowManager*>(glfwGetWindowUserPointer(window));
             if ((manager != nullptr) && manager->onCloseCallback) {
                 manager->onCloseCallback();
@@ -47,9 +48,6 @@ namespace gui {
         }
     }
 
-    void WindowManager::getWindowSize(int& w, int& h) {
-        glfwGetWindowSize(window.get(), &w, &h);
-    }
     void WindowManager::closeWindow() {
         glfwSetWindowShouldClose(window.get(), 1);
     }
@@ -63,6 +61,10 @@ namespace gui {
 
     auto WindowManager::shouldClose() -> bool {
         return glfwWindowShouldClose(window.get()) != 0;
+    }
+
+    auto WindowManager::windowHided() -> bool {
+        return glfwGetWindowAttrib(window.get(), GLFW_VISIBLE) == 0;
     }
 
     void WindowManager::pollEvents() {
@@ -98,6 +100,15 @@ namespace gui {
 
     void WindowManager::setOnCloseCallback(Callback cb) {
         onCloseCallback = std::move(cb);
+    }
+
+    std::pair<int, int> WindowManager::getWindowSize() {
+        int w;
+        int h;
+
+        glfwGetWindowSize(window.get(), &w, &h);
+
+        return {w, h};
     }
 
     auto WindowManager::getWindow () -> std::shared_ptr<GLFWwindow> {

@@ -57,7 +57,9 @@ namespace sys {
             hid_init();
             readControllers();
             initControllers();
+#if ENABLE_INFO_LOGS
             showControllersInfo();
+#endif
         }
         size_t controllersNum() { return controllers.size(); }
         void sendToController(int controller_id, uint value);

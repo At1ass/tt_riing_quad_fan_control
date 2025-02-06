@@ -77,7 +77,7 @@ namespace gui {
             const char* items[] = { "CPU", "GPU"};
 
             ImGui::SetNextWindowPos(ImVec2(0.0F, 0.0F));
-            ImGui::SetNextWindowSize(ImVec2(1280, 720));
+            ImGui::SetNextWindowSize(ImVec2(size.first, size.second));
             ImGui::Begin(
                     "Fan ctrl",
                     nullptr,
@@ -185,6 +185,18 @@ namespace gui {
                     }
                 }
             }
+
+            ImGui::Text(
+                    "%s temp: %d",
+                    cpu_name.c_str(),
+                    static_cast<int>(current_cpu_temp)
+                    );
+
+            ImGui::Text(
+                    "%s temp: %d",
+                    gpu_name.c_str(),
+                    static_cast<int>(current_gpu_temp)
+                    );
 
             ImGui::End();
         }

@@ -4,6 +4,7 @@
 #include "core/mediator.hpp"
 #include "core/observer.hpp"
 #include "core/pointPlotStrategy.hpp"
+#include "core/uiObserver.hpp"
 #include "gui/gtk_tray_manager.hpp"
 #include "gui/ui.hpp"
 #include "gui/window_manager.hpp"
@@ -31,7 +32,7 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         auto tray_manager = std::make_shared<gui::GTKTrayManager>();
 
         tray_manager->setOnToggleCallback([&](){
-            static bool windowHidden = true;
+            bool windowHidden = win_manager->windowHided();
 
             if (windowHidden) {
                 core::Logger::log_(core::LogLevel::INFO) << "Restoring window from tray" << std::endl;
@@ -52,7 +53,8 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
 
         win_manager->setOnCloseCallback([&](){
             core::Logger::log_(core::LogLevel::INFO) << "Window closed via close button." << std::endl;
-            tray_manager->stop();
+            win_manager->hideWindow();
+            /*tray_manager->stop();*/
         });
 
         std::shared_ptr<sys::System> system;
@@ -95,6 +97,15 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         win_manager->hideWindow();
 
         std::shared_ptr<gui::GuiManager> const gui = std::make_shared<gui::GuiManager>(win_manager->getWindow());
+
+        std::shared_ptr<core::ObserverUiCPU> const ui_cpu_o = std::make_shared<core::ObserverUiCPU>(gui);
+        std::shared_ptr<core::ObserverUiGPU> const ui_gpu_o = std::make_shared<core::ObserverUiGPU>(gui);
+
+        mon.addObserver(ui_cpu_o);
+        mon.addObserver(ui_gpu_o);
+
+        gui->setGPUName(mon.getGpuName());
+        gui->setCPUName(mon.getCpuName());
 
         gui->setStrategy(std::make_unique<core::PointPlotStrategy>());
         auto mediator = std::make_shared<core::FanMediator>(gui, fc);
@@ -154,10 +165,11 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         {
             win_manager->pollEvents();
             win_manager->createOrResize();
+            gui->setRenderSize(win_manager->getWindowSize());
             gui->render();
         }
     }
-    catch (const std::exception e) {
+    catch (const std::exception& e) {
         core::Logger::log_(core::LogLevel::ERROR) << "Error" << e.what() << std::endl;
         return EXIT_FAILURE;
     }

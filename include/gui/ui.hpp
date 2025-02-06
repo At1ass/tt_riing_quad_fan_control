@@ -27,6 +27,14 @@ namespace gui {
             void setStrategy(std::unique_ptr<core::PlotStrategy> strategy) {
                 plot_stategy = std::move(strategy);
             }
+
+            void setGPUName(const std::string &name) {gpu_name = std::move(name);}
+            void setCPUName(const std::string &name) {cpu_name = std::move(name);}
+            void setRenderSize(const std::pair<int, int>& w_size) {size = std::move(w_size);}
+
+            void updateCPUCurrentTemp(float temp) {current_cpu_temp = temp;}
+            void updateGPUCurrentTemp(float temp) {current_gpu_temp = temp;}
+
             void updateGraphData(
                 int controller_idx,
                 int fan_idx,
@@ -78,6 +86,11 @@ namespace gui {
             template <typename>
                 struct AlwaysFalse : std::false_type {};
 
+            float current_cpu_temp;
+            float current_gpu_temp;
+            std::string gpu_name;
+            std::string cpu_name;
+            std::pair<int, int> size;
             std::unordered_map<std::string, std::vector<FileDialogCallback>> fileDialogCallbacks;
             std::unordered_map<std::string, std::vector<GeneralCallback>> generalCallbacks;
             std::shared_ptr<core::FanMediator> mediator;

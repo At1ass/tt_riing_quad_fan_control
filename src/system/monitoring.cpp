@@ -1,4 +1,5 @@
 #include "system/monitoring.hpp"
+#include "core/logger.hpp"
 #include "core/observer.hpp"
 #include "nvml.h"
 #include "system/file_utils.hpp"
@@ -7,7 +8,9 @@
 #include <cmath>
 #include <cstdio>
 #include <dirent.h>
+#include <mutex>
 #include <sys/stat.h>
+#include <regex>
 
 static auto findInput(const std::string& path, const char* input_prefix, std::string& input, const std::string& name) -> bool
 {
@@ -46,7 +49,7 @@ static auto findFallbackInput(const std::string& path, const char* input_prefix,
             continue;
 }
         input = path + "/" + file;
-        std::cerr << std::format("fallback cpu {} input: {}", input_prefix, input) << '\n';
+        core::Logger::log_(core::LogLevel::INFO) << std::format("fallback cpu {} input: {}", input_prefix, input) << '\n';
         return true;
     }
     return false;
@@ -67,7 +70,7 @@ namespace sys {
         for (auto& dir : dirs) {
             path = hwmon + dir;
             name = readLine(path + "/name");
-            std::cerr << std::format("hwmon: sensor name: {}", name) << '\n';
+            core::Logger::log_(core::LogLevel::INFO) << std::format("hwmon: sensor name: {}", name) << '\n';
 
             if (name == "coretemp") {
                 findInput(path, "temp", input, "Package id 0");
@@ -97,12 +100,27 @@ namespace sys {
             }
         }
         if (path.empty() || (!fileExists(input) && !findFallbackInput(path, "temp", input))) {
-            std::cerr << std::format("Could not find cpu temp sensor location") << '\n';
+            core::Logger::log_(core::LogLevel::WARNING) << std::format("Could not find cpu temp sensor location") << '\n';
             return false;
-        }         std::cerr << std::format("hwmon: using input: {}", input) << std::endl;
+        }
+        core::Logger::log_(core::LogLevel::INFO) << std::format("hwmon: using input: {}", input) << std::endl;
         cpu_file = fopen(input.c_str(), "r");
 
         return true;
+    }
+
+    void Monitoring::cpuInfoCpuName() {
+        static const std::regex re(R"(\s+[0-9]+-Core Processor\s+)");
+        uint32_t regs[4];
+        for(int i=0x80000002; i<0x80000005; ++i) {
+            __asm__ volatile (
+                    "cpuid"
+                    : "=a"(regs[0]), "=b"(regs[1]), "=c"(regs[2]), "=d"(regs[3])
+                    : "a"(i)
+                    );
+            cpu_name += std::string(reinterpret_cast<char*>(regs), 16);
+        }
+        cpu_name = std::regex_replace(cpu_name, re, "");
     }
 
     auto Monitoring::readCpuTempFile(int &temp) -> bool {
@@ -125,19 +143,19 @@ namespace sys {
 
         result = nvmlInit();
         if (NVML_SUCCESS != result) {
-            std::cerr << "Failed to initialize NVML: " << nvmlErrorString(result) << '\n';
+            core::Logger::log_(core::LogLevel::ERROR) << "Failed to initialize NVML: " << nvmlErrorString(result) << '\n';
             return false;
         }
 
         result = nvmlDeviceGetHandleByIndex(0, &device);
         if (NVML_SUCCESS != result) {
-            std::cerr << "Failed to get handle for device: " << nvmlErrorString(result) << '\n';
+            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get handle for device: " << nvmlErrorString(result) << '\n';
             return false;
         }
 
         result = nvmlDeviceGetName(device, name, NVML_DEVICE_NAME_BUFFER_SIZE);
         if (NVML_SUCCESS != result) {
-            std::cerr << "Failed to get name of device:" << nvmlErrorString(result) << '\n';
+            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get name of device:" << nvmlErrorString(result) << '\n';
             return false;
         }
 
@@ -151,7 +169,7 @@ namespace sys {
 
         result = nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &temp);
         if (NVML_SUCCESS != result) {
-            std::cerr << "Failed to get gpu temp: " << nvmlErrorString(result) << '\n';
+            core::Logger::log_(core::LogLevel::ERROR) << "Failed to get gpu temp: " << nvmlErrorString(result) << '\n';
             return false;
         }
 
@@ -162,6 +180,10 @@ namespace sys {
         return gpu_name;
     }
 
+    auto Monitoring::getCpuName() -> std::string {
+        return cpu_name;
+    }
+
     void Monitoring::closeNvml() {
         nvmlShutdown();
     }
@@ -170,6 +192,7 @@ namespace sys {
         bool ret = false;
 
         getCpuFile();
+        cpuInfoCpuName();
         ret = initNvml();
         if (!ret) {
             throw std::runtime_error("Failed get NVIDIA device");
@@ -244,20 +267,25 @@ namespace sys {
             return;
         }
 
-        if (to5(cpu_temp) != to5(temp)) {
+        if (cpu_temp != temp) {
             notifyTempChanged(temp, core::EventType::CPU_TEMP_CHANGED);
         }
-        if (to5(gpu_temp) != to5(gtemp)) {
+        if (gpu_temp != gtemp) {
             notifyTempChanged(gtemp, core::EventType::GPU_TEMP_CHANGED);
         }
 
+        std::lock_guard<std::mutex> lock(temp_lock);
         cpu_temp = temp;
         gpu_temp = gtemp;
     }
 
-    auto Monitoring::getCpuTemp() const -> int {
+    auto Monitoring::getCpuTemp() -> int {
+        std::lock_guard<std::mutex> lock(temp_lock);
         return cpu_temp;
     }
 
-    auto Monitoring::getGpuTemp() const -> int { return gpu_temp;}
+    auto Monitoring::getGpuTemp() -> int {
+        std::lock_guard<std::mutex> lock(temp_lock);
+        return gpu_temp;
+    }
 }
