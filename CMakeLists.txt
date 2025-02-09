@@ -24,6 +24,12 @@ option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
 option(GLFW_DOCUMENT_INTERNALS "Include internals in documentation" OFF)
+option(BUILD_TESTS "Build unit tests" ON)
+
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 add_subdirectory(${GLFW_DIR} binary_dir EXCLUDE_FROM_ALL)
 target_include_directories(glfw PUBLIC ${GLFW_DIR}/include)
 

@@ -13,6 +13,7 @@ namespace sys {
     };
     class FanSpeedData {
         public:
+            FanSpeedData();
             void addSpeed(float s);
             void addTemp(float t);
             void updateData(std::vector<double> t, std::vector<double> s);
@@ -20,6 +21,7 @@ namespace sys {
             std::vector<double>* getSData();
             std::pair<std::vector<double>, std::vector<double>> getData();
             double getSpeedForTemp(const float& temp);
+            void resetData() { temps.clear(); speeds.clear();}
         private:
             std::vector<double> temps;
             std::vector<double> speeds;
@@ -27,10 +29,12 @@ namespace sys {
 
     class FanBezierData {
         public:
+            FanBezierData();
             void addControlPoint(const std::pair<double, double>& cp);
             auto getData() -> std::array<std::pair<double, double>, 4>& ;
             void setData(const std::array<std::pair<double, double>, 4>& data) ;
             double getSpeedForTemp(const float& temp);
+            int getIdx() {return idx;}
         private:
             std::pair<double, double> ComputeBezierAtT(double t) ;
 
@@ -49,8 +53,8 @@ namespace sys {
             void setIdx(size_t i) {idx = i;}
             size_t getIdx() {return idx;}
         private:
-            MONITORING_MODE monitoring_mode;
-            size_t idx;
+            MONITORING_MODE monitoring_mode = MONITORING_MODE::MONITORING_CPU;
+            size_t idx = 0;
             FanSpeedData data;
             FanBezierData bdata;
     };
@@ -79,7 +83,7 @@ namespace sys {
         private:
             bool readed = false;
             toml::parse_result conf;
-            int controllers_num;
+            int controllers_num = 0;
             Config() { }
             Config(const Config&) = delete;
             void operator=(const Config&) = delete;

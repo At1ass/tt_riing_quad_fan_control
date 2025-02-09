@@ -6,8 +6,16 @@
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
 
 namespace sys {
+    FanSpeedData::FanSpeedData() {
+        for(size_t k = 0; k <= 100; k+=5) {
+            addTemp(static_cast<float>(k));
+            addSpeed(50.0);
+        }
+    }
+
     void FanSpeedData::addSpeed(float s) {
         speeds.push_back(static_cast<double>(s));
     }
@@ -40,6 +48,7 @@ namespace sys {
         auto it = std::lower_bound(temps.begin(), temps.end(), temp);
         auto n = std::distance(temps.begin(), it);
 
+        if ( n == 0 ) return speeds[n];
         P1.first = temps[n];
         P2.first = temps[n - 1];
         P1.second = speeds[n];
@@ -48,6 +57,17 @@ namespace sys {
         core::Logger::log_(core::LogLevel::INFO) << "Points: " << "[" << P1.first << ", " << P1.second << "] [" << P2.first << ", " << P2.second << "]" << std::endl;
 
         return P1.second + ( (P2.second - P1.second) / (P2.first - P1.first) ) * (temp - P1.first);
+    }
+
+    FanBezierData::FanBezierData() {
+        setData(
+                {
+                    std::make_pair<double, double>(0.0, 0.0),
+                    std::make_pair<double, double>(40.0, 60.0),
+                    std::make_pair<double, double>(60.0, 40.0),
+                    std::make_pair<double, double>(100.0, 100.0)
+                }
+               );
     }
 
     void FanBezierData::addControlPoint(const std::pair<double, double>& cp) {
@@ -66,8 +86,8 @@ namespace sys {
         using pair = std::pair<double, double> ;
         double t_low = 0.0, t_high = 1.0;
         double t_mid;
-        double epsilon = 0.01;
-        int max_iterations = 100;
+        double epsilon = 0.001;
+        int max_iterations = 1000;
 
         for (int i = 0; i < max_iterations; ++i) {
             t_mid = (t_low + t_high) / 2.0;
@@ -139,13 +159,17 @@ namespace sys {
                         sys::Fan fan;
                         sys::FanSpeedData data;
                         sys::FanBezierData bdata;
+                        data.resetData();
                         f.as_table()->for_each([&fan, &data, &bdata](const toml::key& key, auto&& val){
                             if (toml::is_integer<decltype(val)> && key == "Monitoring") {
+                                auto mode = val.as_integer()->get();
+                                if (mode != 0 && mode != 1) {
+                                    throw std::runtime_error("Incorrect monitoring mode");
+                                }
                                 fan.setMonitoringMode(
-                                    val.as_integer()->get() ? sys::MONITORING_MODE::MONITORING_GPU : sys::MONITORING_MODE::MONITORING_CPU
+                                    mode ? sys::MONITORING_MODE::MONITORING_GPU : sys::MONITORING_MODE::MONITORING_CPU
                                 );
-                            }
-                            if (toml::is_array<decltype(val)> && key == "Temps") {
+                            } else if (toml::is_array<decltype(val)> && key == "Temps") {
                                 val.as_array()->for_each([&data](auto &&t) {
                                     if (toml::is_floating_point<decltype(t)>) {
                                         data.addTemp(t.as_floating_point()->get());
@@ -154,8 +178,7 @@ namespace sys {
                                         throw std::runtime_error("Incorrect temp");
                                     }
                                 });
-                            }
-                            if (toml::is_array<decltype(val)> && key == "Speeds") {
+                            } else if (toml::is_array<decltype(val)> && key == "Speeds") {
                                 val.as_array()->for_each([&data](auto &&s) {
                                     if (toml::is_floating_point<decltype(s)>) {
                                         data.addSpeed(s.as_floating_point()->get());
@@ -164,8 +187,7 @@ namespace sys {
                                         throw std::runtime_error("Incorrect speed");
                                     }
                                 });
-                            }
-                            if (toml::is_array<decltype(val)> && key == "Control points") {
+                            } else if (toml::is_array<decltype(val)> && key == "Control points") {
                                 val.as_array()->for_each([&](auto &cp) {
                                     if (toml::is_table<decltype(cp)>) {
                                         double x,y;
@@ -173,9 +195,10 @@ namespace sys {
                                         cp.as_table()->for_each([&](const toml::key& key, auto &&value){
                                             if (toml::is_floating_point<decltype(value)> && key == "x") {
                                                 cpoint.first = value.as_floating_point()->get();
-                                            }
-                                            if (toml::is_floating_point<decltype(value)> && key == "y") {
+                                            } else if (toml::is_floating_point<decltype(value)> && key == "y") {
                                                 cpoint.second = value.as_floating_point()->get();
+                                            } else {
+                                                throw std::runtime_error("Incorrect cp data");
                                             }
                                         });
                                         bdata.addControlPoint(cpoint);
@@ -183,6 +206,11 @@ namespace sys {
                                         throw std::runtime_error("Incorrect control points structure");
                                     }
                                 });
+                                if (bdata.getIdx() != 4) {
+                                        throw std::runtime_error("Control points count must be 4");
+                                }
+                            } else {
+                                throw std::runtime_error("Incorrect config structure");
                             }
                         });
                         fan.setIdx(j++);
@@ -212,18 +240,6 @@ namespace sys {
                 fan.setMonitoringMode(sys::MONITORING_MODE::MONITORING_CPU);
                 sys::FanSpeedData data;
                 sys::FanBezierData bd;
-                for(size_t k = 0; k <= 100; k+=5) {
-                    data.addTemp(static_cast<float>(k));
-                    data.addSpeed(50.0);
-                }
-                bd.setData(
-                        {
-                            std::make_pair<double, double>(0.0, 0.0),
-                                std::make_pair<double, double>(40.0, 60.0),
-                                std::make_pair<double, double>(60.0, 40.0),
-                                std::make_pair<double, double>(100.0, 100.0)
-                        }
-                        );
                 fan.addData(data);
                 fan.addBData(bd);
                 controller.addFan(fan);
