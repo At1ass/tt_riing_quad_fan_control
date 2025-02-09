@@ -16,6 +16,12 @@ add_compile_definitions(VK_PROTOTYPES)
 
 # Verbose makefile output (опционально)
 set(CMAKE_VERBOSE_MAKEFILE ON)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    message(STATUS "Enabling code coverage flags")
+    set(COVERAGE_CXX_FLAGS "-fprofile-arcs -ftest-coverage")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COVERAGE_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${COVERAGE_CXX_FLAGS}")
+endif()
 
 # --- GLFW setup ---
 set(GLFW_DIR "${CMAKE_SOURCE_DIR}/3rdparty/glfw")
@@ -48,7 +54,11 @@ link_directories(${AYATANA_LIBRARY_DIRS})
 add_definitions(${AYATANA_CFLAGS_OTHER})
 
 # --- hidapi ---
-find_package(hidapi REQUIRED)
+# find_package(hidapi REQUIRED)
+pkg_check_modules(HIDAPI REQUIRED hidapi-hidraw)
+include_directories(${HIDAPI_INCLUDE_DIRS})
+link_directories(${HIDAPI_LIBRARY_DIRS})
+add_definitions(${HIDAPI_CFLAGS_OTHER})
 
 # --- Vulkan ---
 find_package(Vulkan REQUIRED)
@@ -90,7 +100,8 @@ target_link_libraries(tt_riing_quad_fan_control
     Vulkan::Vulkan
     ${GTK3_LIBRARIES}
     ${AYATANA_LIBRARIES}
-    hidapi::hidapi
+    # hidapi::hidapi
+    ${HIDAPI_LIBRARIES}
     HEADERS_INCLUDE
 )
 

@@ -434,4 +434,5 @@ TEST(ConfigTest, WriteToFileConfigTest) {
 
     // 5. Удаляем временный файл.
     std::remove(tempFileName.c_str());
+    std::remove(tempOutputFileName.c_str());
 }
