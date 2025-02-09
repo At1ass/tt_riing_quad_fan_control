@@ -1,61 +1,53 @@
 #include "system/hidapi_wrapper.hpp"
 #include <cstring>
+#include <hidapi.h>
 #include <print>
+#include <stdexcept>
 #include <utility>
 
 namespace sys {
+    enum PROTOCOL_TYPE{
+        PROTOCOL_SET = 0x32,
+        PROTOCOL_GET = 0x33
+    };
+
+    enum PROTOCOL_TARGET {
+        PROTOCOT_FIRMWARE = 0x50,
+        PROTOCOL_FAN = 0x51,
+        PROTOCOL_LIGHT = 0x52,
+    };
+
+
+
+    std::string HidWrapper::Device::construct_error(const std::string& msg, const wchar_t* reason) {
+        std::string err_msg("Failed hid_open: ");
+        std::wstring error(hid_error(NULL));
+        err_msg += std::string(error.begin(), error.end());
+        return err_msg;
+    }
     void
         HidWrapper::Device::init()
         {
             this->dev = hid_open(THERMALTAKE_VID, pid, nullptr);
+
+            if (this->dev == nullptr) {
+                throw std::runtime_error(construct_error("Failed hid_open: ", hid_error(NULL)));
+            }
+
         }
 
     void
         HidWrapper::Device::sendInit()
         {
-            unsigned char usb_buf[THERMALTAKE_QUAD_PACKET_SIZE];
-
-            /*-----------------------------------------------------*\
-              | Zero out buffer                                       |
-              \*-----------------------------------------------------*/
-            memset(usb_buf, 0x00, sizeof(usb_buf));
-
-            /*-----------------------------------------------------*\
-              | Set up Init packet                                    |
-              \*-----------------------------------------------------*/
-            usb_buf[0x00]   = 0x00;
-            usb_buf[0x01]   = 0xFE;
-            usb_buf[0x02]   = 0x33;
-
-            /*-----------------------------------------------------*\
-              | Send packet                                           |
-              \*-----------------------------------------------------*/
-            hid_write(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
-            hid_read_timeout(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
+            send_request(0xFE, PROTOCOL_GET);
+            read_response();
         }
 
     void
         HidWrapper::Device::showFirmwareVersion()
         {
-            unsigned char usb_buf[THERMALTAKE_QUAD_PACKET_SIZE];
-
-            /*-----------------------------------------------------*\
-              | Zero out buffer                                       |
-              \*-----------------------------------------------------*/
-            memset(usb_buf, 0x00, sizeof(usb_buf));
-
-            /*-----------------------------------------------------*\
-              | Set up Get Firmware Version packet                    |
-              \*-----------------------------------------------------*/
-            usb_buf[0x00]   = 0x00;
-            usb_buf[0x01]   = 0x33;
-            usb_buf[0x02]   = 0x50;
-
-            /*-----------------------------------------------------*\
-              | Send packet                                           |
-              \*-----------------------------------------------------*/
-            hid_write(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
-            hid_read_timeout(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
+            send_request(PROTOCOL_GET, PROTOCOT_FIRMWARE);
+            std::array<unsigned char, THERMALTAKE_QUAD_PACKET_SIZE> usb_buf = read_response();
 
             std::println("Firmware version: {}.{}.{}", usb_buf[2], usb_buf[3], usb_buf[4]);
         }
@@ -65,27 +57,8 @@ namespace sys {
                 unsigned char *     speed,
                 unsigned short *    rpm)
         {
-            unsigned char usb_buf[THERMALTAKE_QUAD_PACKET_SIZE];
-            int ret = 0;
-
-            /*-----------------------------------------------------*\
-              | Zero out buffer                                       |
-              \*-----------------------------------------------------*/
-            memset(usb_buf, 0x00, sizeof(usb_buf));
-
-            /*-----------------------------------------------------*\
-              | Set up Get Fan Data packet                            |
-              \*-----------------------------------------------------*/
-            usb_buf[0x00]   = 0x00;
-            usb_buf[0x01]   = 0x33;
-            usb_buf[0x02]   = 0x51;
-            usb_buf[0x03]   = port;
-
-            /*-----------------------------------------------------*\
-              | Send packet                                           |
-              \*-----------------------------------------------------*/
-            ret = hid_write(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
-            ret = hid_read_timeout(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
+            send_request(PROTOCOL_GET, PROTOCOT_FIRMWARE);
+            std::array<unsigned char, THERMALTAKE_QUAD_PACKET_SIZE> usb_buf = read_response();
 
             *speed = usb_buf[0x04];
             *rpm   = (usb_buf[0x06] << 8) + usb_buf[0x05];
@@ -96,40 +69,27 @@ namespace sys {
                 unsigned char       mode,
                 unsigned char       speed)
         {
-            unsigned char usb_buf[THERMALTAKE_QUAD_PACKET_SIZE];
-
-            /*-----------------------------------------------------*\
-              | Zero out buffer                                       |
-              \*-----------------------------------------------------*/
-            memset(usb_buf, 0x00, sizeof(usb_buf));
-
-            /*-----------------------------------------------------*\
-              | Set up RGB packet                                     |
-              \*-----------------------------------------------------*/
-            usb_buf[0x00]   = 0x00;
-            usb_buf[0x01]   = 0x32;
-            usb_buf[0x02]   = 0x51;
-            usb_buf[0x03]   = port;
-            usb_buf[0x04]   = mode;
-            usb_buf[0x05]   = speed;
-
-            /*-----------------------------------------------------*\
-              | Send packet                                           |
-              \*-----------------------------------------------------*/
-            hid_write(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE);
-            hid_read_timeout(dev, usb_buf, THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
+            send_request(PROTOCOL_SET, PROTOCOL_FAN, port, mode, speed);
+            read_response();
         }
 
     void
         HidWrapper::Device::showInfo() {
             wchar_t name_string[HID_MAX_STR];
+            int ret;
 
-            hid_get_manufacturer_string(dev, name_string, HID_MAX_STR);
+            ret = hid_get_manufacturer_string(dev, name_string, HID_MAX_STR);
+            if ( ret == -1) {
+                throw std::runtime_error(construct_error("Failed hid_get_manufacturer_string: ", hid_error(dev)));
+            }
 
             printf("Name %ls\n", name_string);
             std::wprintf(L"Name: %s\n", name_string);
 
-            hid_get_product_string(dev, name_string, HID_MAX_STR);
+            ret = hid_get_product_string(dev, name_string, HID_MAX_STR);
+            if ( ret == -1) {
+                throw std::runtime_error(construct_error("Failed hid_get_product_string: ", hid_error(dev)));
+            }
 
             std::wprintf(L"Prod Name: %s\n", name_string);
             printf("Prod Name: %ls\n", name_string);
@@ -155,6 +115,13 @@ namespace sys {
         size_t i = 0;
 
         devs = hid_enumerate(THERMALTAKE_VID, 0);
+
+        if (devs == nullptr) {
+            std::string reason("Failed hid_enumerate: ");
+            std::wstring error(hid_error(NULL));
+            reason += std::string(error.begin(), error.end());
+            throw std::runtime_error(reason);
+        }
 
         tmp = devs;
         while (tmp != nullptr) {

@@ -1,7 +1,9 @@
 #ifndef __HIDAPI_WRAPPER_HPP__
 #define __HIDAPI_WRAPPER_HPP__
 
+#include <cstring>
 #include <hidapi.h>
+#include <stdexcept>
 #include <sys/types.h>
 #include <vector>
 #include <array>
@@ -46,6 +48,31 @@ namespace sys {
                 void closeDevice();
 
             private:
+                template <typename ...T>
+                void send_request(unsigned char f_prot, unsigned char s_prot, T... data) {
+                    std::array<unsigned char, THERMALTAKE_QUAD_PACKET_SIZE> usb_buf{0x00, f_prot, s_prot, data...};
+                    int ret;
+
+                    ret = hid_write(dev, usb_buf.data(), THERMALTAKE_QUAD_PACKET_SIZE);
+                    if ( ret == -1) {
+                        throw std::runtime_error(construct_error("Failed hid_write: ", hid_error(dev)));
+                    }
+
+                }
+
+                std::array<unsigned char, THERMALTAKE_QUAD_PACKET_SIZE> read_response() {
+                    std::array<unsigned char, THERMALTAKE_QUAD_PACKET_SIZE> response{0};
+                    int ret;
+
+                    ret = hid_read_timeout(dev, response.data(), THERMALTAKE_QUAD_PACKET_SIZE, THERMALTAKE_QUAD_INTERRUPT_TIMEOUT);
+                    if ( ret == -1) {
+                        throw std::runtime_error(construct_error("Failed hid_read_timeout: ", hid_error(dev)));
+                    }
+
+                    return response;
+                }
+
+                std::string construct_error(const std::string& msg, const wchar_t* reason);
                 unsigned short pid;
                 hid_device* dev;
         };
@@ -54,7 +81,12 @@ namespace sys {
         std::vector<std::vector<std::pair<unsigned char, unsigned short>>> fan_data;
         public:
         HidWrapper() {
-            hid_init();
+            int ret = hid_init();
+
+            if (ret != 0) {
+                throw std::runtime_error("Cannot iniztialize hidapi");
+            }
+
             readControllers();
             initControllers();
 #if ENABLE_INFO_LOGS
