@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+
 enum class EventMessageType {
     Initialize,  // Инициализация данных
     UpdateGraph, // Обновление графиков (изменение через GUI)
@@ -16,13 +17,26 @@ struct Message {
     int f_idx;
 };
 
-class Mediator {
-public:
-    virtual ~Mediator() = default;
+namespace core {
+    /*class IMediator {*/
+    /*    public:*/
+    /*        virtual ~IMediator() = default;*/
+    /**/
+    /*        virtual void notify(this auto&& self, EventMessageType eventType, std::shared_ptr<Message> msg) = 0;*/
+    /*};*/
 
-    void notify(this auto&& self, EventMessageType eventType, std::shared_ptr<Message> msg) {
-        self.dispatch(eventType, msg);
-    }
-};
-
+    class Mediator {
+        public:
+            virtual ~Mediator() = default;
+            virtual void notify(EventMessageType eventType, std::shared_ptr<Message> msg) = 0;
+    };
+    /*class Mediator {*/
+    /*    public:*/
+    /*        virtual ~Mediator() = default;*/
+    /**/
+    /*        void notify(this auto&& self, EventMessageType eventType, std::shared_ptr<Message> msg) {*/
+    /*            self.dispatch(eventType, msg);*/
+    /*        }*/
+    /*};*/
+}
 #endif //!__MEDIATOR_HPP_

@@ -28,7 +28,7 @@ namespace gui {
         return extensions;
     }
 
-    void GuiManager::setMediator(std::shared_ptr<core::FanMediator> mediator) {
+    void GuiManager::setMediator(std::shared_ptr<core::Mediator> mediator) {
         this->mediator = std::move(mediator);
     }
 

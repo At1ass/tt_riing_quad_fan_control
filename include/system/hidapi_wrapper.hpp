@@ -21,7 +21,13 @@ namespace sys {
         THERMALTAKE_FAN_MODE_PWM        = 0x02
     };
 
-    class HidWrapper {
+    class IHidWrapper {
+        public:
+            virtual ~IHidWrapper() = default;
+            virtual void sentToFan(int controllerIdx, int fanIdx, uint value) = 0;
+    };
+
+    class HidWrapper : public IHidWrapper {
         class Device {
             public:
                 Device(unsigned short pid) {
@@ -95,7 +101,7 @@ namespace sys {
         }
         size_t controllersNum() { return controllers.size(); }
         void sendToController(int controller_id, uint value);
-        void sentToFan(int controller_id, int fan_index, uint value);
+        void sentToFan(int controller_id, int fan_index, uint value) override;
         void getFanData(int controller_id, int fan_id, unsigned char *speed, unsigned short *rpm);
         void updateFanData();
         const std::vector<std::vector<std::pair<unsigned char, unsigned short>>>& getAllFanData() {

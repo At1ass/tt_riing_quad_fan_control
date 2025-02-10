@@ -22,10 +22,10 @@ namespace core {
             FanController &operator=(const FanController &) = default;
             FanController &operator=(FanController &&) = default;
             FanController(std::shared_ptr<sys::System> sys,
-                    std::shared_ptr<sys::HidWrapper> wr)
+                    std::shared_ptr<sys::IHidWrapper> wr)
                 : system(sys), wrapper(wr) {}
 
-            void setMediator(std::shared_ptr<FanMediator> mediator);
+            void setMediator(std::shared_ptr<Mediator> mediator);
             void updateCPUfans(float temp);
             void updateGPUfans(float temp);
             void reloadAllFans();
@@ -52,8 +52,8 @@ namespace core {
 
             DATA_USE dataUse = DATA_USE::POINT;
             std::shared_ptr<sys::System> system;
-            std::shared_ptr<sys::HidWrapper> wrapper;
-            std::shared_ptr<FanMediator> mediator;
+            std::shared_ptr<sys::IHidWrapper> wrapper;
+            std::shared_ptr<Mediator> mediator;
     };
 
 };

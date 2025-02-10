@@ -11,7 +11,7 @@ namespace core {
                 int i,
                 int j,
                 std::variant<fanData, std::array<std::pair<double, double>, 4>> data,
-                std::shared_ptr<core::FanMediator> mediator
+                std::shared_ptr<core::Mediator> mediator
                 ) override;
 
             void accept(

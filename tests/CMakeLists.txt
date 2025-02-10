@@ -19,6 +19,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/googletest ${CMAKE_CURR
 set(TEST_SOURCES
     test_config.cpp
     test_monitoring.cpp
+    test_fan_controller.cpp
 )
 
 add_executable(runTests

@@ -23,7 +23,7 @@ namespace gui {
             //GLFW
             static std::shared_ptr<ImVector<const char*>> extensions();
 
-            void setMediator(std::shared_ptr<core::FanMediator> mediator);
+            void setMediator(std::shared_ptr<core::Mediator> mediator);
             void setStrategy(std::unique_ptr<core::PlotStrategy> strategy) {
                 plot_stategy = std::move(strategy);
             }
@@ -93,7 +93,7 @@ namespace gui {
             std::pair<int, int> size;
             std::unordered_map<std::string, std::vector<FileDialogCallback>> fileDialogCallbacks;
             std::unordered_map<std::string, std::vector<GeneralCallback>> generalCallbacks;
-            std::shared_ptr<core::FanMediator> mediator;
+            std::shared_ptr<core::Mediator> mediator;
             std::unordered_map<int, std::pair<std::vector<double>, std::vector<double>>> graphData;
             std::unordered_map<int, std::array<std::pair<double, double>, 4>> bezierData;
             std::unordered_map<int, int> fanMods;

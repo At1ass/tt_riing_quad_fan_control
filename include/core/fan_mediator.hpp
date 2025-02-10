@@ -14,18 +14,18 @@ namespace core {
     class Monitoring;
 }
 
-struct fanData{
-    std::vector<double> t;
-    std::vector<double> s;
-};
+    struct fanData{
+        std::vector<double> t;
+        std::vector<double> s;
+    };
 
-struct DataMessage : public Message {
-    std::variant<fanData, std::array<std::pair<double, double>, 4>> data;
-};
+    struct DataMessage : public Message {
+        std::variant<fanData, std::array<std::pair<double, double>, 4>> data;
+    };
 
-struct ModeMessage : public Message {
-    int mode;
-};
+    struct ModeMessage : public Message {
+        int mode;
+    };
 
 namespace core {
     class FanMediator : public Mediator {
@@ -33,9 +33,13 @@ namespace core {
             FanMediator(std::shared_ptr<gui::GuiManager> guiManager, std::shared_ptr<core::FanController> fanController)
                 : guiManager(std::move(guiManager)), fanController(std::move(fanController)) {}
 
-            void dispatch(EventMessageType eventType, std::shared_ptr<Message> msg);
+            void notify(EventMessageType eventType, std::shared_ptr<Message> msg) {
+                dispatch(eventType, msg);
+            }
 
         private:
+            void dispatch(EventMessageType eventType, std::shared_ptr<Message> msg);
+
             void initialize();
 
             void handleUpdateGraph(std::shared_ptr<DataMessage> msg);

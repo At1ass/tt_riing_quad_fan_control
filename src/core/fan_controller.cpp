@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 namespace core {
-    void FanController::setMediator(std::shared_ptr<FanMediator> mediator) {
+    void FanController::setMediator(std::shared_ptr<Mediator> mediator) {
         this->mediator = std::move(mediator);
     }
 

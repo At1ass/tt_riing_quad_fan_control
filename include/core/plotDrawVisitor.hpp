@@ -29,11 +29,11 @@ namespace core {
 
         void visit(PointPlotStrategy& strategy) {
             core::Logger::log_(LogLevel::INFO) << "Visit PointPlotStrategy" << std::endl;
-            strategy.plot(i, j, fanData{temps, speeds}, std::static_pointer_cast<FanMediator>(mediator));
+            strategy.plot(i, j, fanData{temps, speeds}, mediator);
         }
         void visit(BezierCurvePlotStrategy& strategy) {
             core::Logger::log_(LogLevel::INFO) << "Visit BezierCurvePlotStrategy" << std::endl;
-            strategy.plot(i, j, bezierData, std::static_pointer_cast<FanMediator>(mediator));
+            strategy.plot(i, j, bezierData, mediator);
         }
 
         private:
