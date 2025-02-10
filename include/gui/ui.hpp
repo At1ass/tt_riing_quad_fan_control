@@ -61,6 +61,11 @@ namespace gui {
             ~GuiManager();
 
         private:
+            void renderMenuBar();
+            void renderPlotButtons();
+            void renderTable();
+            void renderApplyButton();
+            void renderMonitoring();
 
             static void cleanup();
             void printPlot(int i, int j);

@@ -65,6 +65,136 @@ namespace gui {
         sys::Vulkan::imGuiInitInfo(window.get());
     }
 
+    void GuiManager::renderMenuBar() {
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Open")) {
+                    core::Logger::log_(core::LogLevel::INFO) << "Open" << std::endl;
+                    if (fileDialogCallbacks.contains("onOpenFile") != 0u) {
+                        for (auto &&c : fileDialogCallbacks["onOpenFile"]) {
+                            c("dummy_open_file");
+                        }
+                    }
+                }
+                if (ImGui::MenuItem("Save to")) {
+                    core::Logger::log_(core::LogLevel::INFO) << "Save" << std::endl;
+                    if (fileDialogCallbacks.contains("onSaveFile") != 0u) {
+                        for (auto &&c : fileDialogCallbacks["onSaveFile"]) {
+                            c("dummy_open_file");
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::MenuItem("Quit")) {
+                core::Logger::log_(core::LogLevel::INFO) << "Quit" << std::endl;
+                if (generalCallbacks.contains("onQuit") != 0u) {
+                    for (auto &&c : generalCallbacks["onQuit"]) {
+                        c();
+                    }
+                }
+            }
+            ImGui::EndMenuBar();
+        }
+    }
+
+    void GuiManager::renderPlotButtons() {
+        if (ImGui::Button("Point Plot")) {
+            setStrategy(std::make_unique<core::PointPlotStrategy>());
+            if (generalCallbacks.contains("onQuit") != 0u) {
+                for (auto &&c : generalCallbacks["onPointPlot"]) {
+                    c();
+                }
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Bezier Plot")) {
+            setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
+            if (generalCallbacks.contains("onQuit") != 0u) {
+                for (auto &&c : generalCallbacks["onBezierPlot"]) {
+                    c();
+                }
+            }
+        }
+    }
+
+    void GuiManager::renderTable() {
+        const char* items[] = { "CPU", "GPU"};
+        if (ImGui::BeginTable("controllers", 5)) {
+            for (size_t i = 0; i < sys::Config::getInstance().getControllersNum(); i++) {
+                ImGui::TableNextRow();
+                for (size_t j = 0; j < 3; j++) {
+                    ImGui::TableSetColumnIndex(j);
+                    ImGui::PushID(i * 4 + j);
+                    if (ImGui::Button("Fan speed curve settings", ImVec2(150, 150))) {
+                        core::Logger::log_(core::LogLevel::INFO) << "Button" << std::endl;
+                        ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
+                    }
+                    ImGui::SetNextWindowSize(ImVec2(size.first / 2, size.second / 2));
+                    if (ImGui::BeginPopupModal("fctl")) {
+                        const char *current_item = items[fanMods[i * 10 + j]];
+                        if (ImGui::BeginCombo("custom combo", current_item, ImGuiComboFlags_NoArrowButton))
+                        {
+                            for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+                            {
+                                bool is_selected = (current_item == items[n]);
+                                if (ImGui::Selectable(items[n], is_selected)) {
+                                    current_item = items[n];
+                                    fanMods[i * 10 + j] = n;
+                                    mediator->notify(EventMessageType::UpdateMonitoringModeUi, std::make_shared<ModeMessage>(ModeMessage{static_cast<int>(i), static_cast<int>(j), n}));
+
+                                }
+                                if (is_selected)
+                                    ImGui::SetItemDefaultFocus();
+                            }
+                            ImGui::EndCombo();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Close")) {
+                            ImGui::CloseCurrentPopup();
+                        }
+                        ImPlot::CreateContext();
+                        printPlot(i, j);
+                        ImPlot::DestroyContext();
+                        ImGui::EndPopup();
+
+                    }
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+
+    void GuiManager::renderApplyButton() {
+        if (ImGui::Button("Apply")) {
+            if (generalCallbacks.contains("onApply") != 0u) {
+                for (auto &&c : generalCallbacks["onApply"]) {
+                    c();
+                }
+            }
+        }
+    }
+
+    void GuiManager::renderMonitoring() {
+        ImGui::Text(
+                "%s temp:",
+                cpu_name.c_str()
+                );
+
+        ImGui::Text("%d °C",
+                static_cast<int>(current_cpu_temp));
+
+        ImGui::Text(
+                "%s temp:",
+                gpu_name.c_str()
+                );
+
+        ImGui::Text("%d °C",
+                static_cast<int>(current_gpu_temp));
+    }
+
 
     void GuiManager::render() {
         sys::Vulkan::newFrame();
@@ -74,7 +204,6 @@ namespace gui {
         {
             static float const f = 0.0F;
             static int const counter = 0;
-            const char* items[] = { "CPU", "GPU"};
 
             ImGui::SetNextWindowPos(ImVec2(0.0F, 0.0F));
             ImGui::SetNextWindowSize(ImVec2(size.first, size.second));
@@ -84,120 +213,19 @@ namespace gui {
                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize
                     );
 
-            if (ImGui::BeginMenuBar()) {
-                if (ImGui::BeginMenu("File")) {
-                    if (ImGui::MenuItem("Open")) {
-                        core::Logger::log_(core::LogLevel::INFO) << "Open" << std::endl;
-                        if (fileDialogCallbacks.contains("onOpenFile") != 0u) {
-                            for (auto &&c : fileDialogCallbacks["onOpenFile"]) {
-                                c("dummy_open_file");
-                            }
-                        }
-                    }
-                    if (ImGui::MenuItem("Save to")) {
-                        core::Logger::log_(core::LogLevel::INFO) << "Save" << std::endl;
-                        if (fileDialogCallbacks.contains("onSaveFile") != 0u) {
-                            for (auto &&c : fileDialogCallbacks["onSaveFile"]) {
-                                c("dummy_open_file");
-                            }
-                        }
-                    }
-                    ImGui::EndMenu();
-                }
-                if (ImGui::MenuItem("Quit")) {
-                    core::Logger::log_(core::LogLevel::INFO) << "Quit" << std::endl;
-                    if (generalCallbacks.contains("onQuit") != 0u) {
-                        for (auto &&c : generalCallbacks["onQuit"]) {
-                            c();
-                        }
-                    }
-                }
-                ImGui::EndMenuBar();
-            }
-
-            if (ImGui::Button("Point Plot")) {
-                setStrategy(std::make_unique<core::PointPlotStrategy>());
-                if (generalCallbacks.contains("onQuit") != 0u) {
-                    for (auto &&c : generalCallbacks["onPointPlot"]) {
-                        c();
-                    }
-                }
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("Bezier Plot")) {
-                setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
-                if (generalCallbacks.contains("onQuit") != 0u) {
-                    for (auto &&c : generalCallbacks["onBezierPlot"]) {
-                        c();
-                    }
-                }
-            }
-
-            if (ImGui::BeginTable("controllers", 5)) {
-                for (size_t i = 0; i < sys::Config::getInstance().getControllersNum(); i++) {
-                    ImGui::TableNextRow();
-                    for (size_t j = 0; j < 3; j++) {
-                        ImGui::TableSetColumnIndex(j);
-                        ImGui::PushID(i * 4 + j);
-                        if (ImGui::Button("Fan speed curve settings")) {
-                            core::Logger::log_(core::LogLevel::INFO) << "Button" << std::endl;
-                            ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
-                        }
-                        if (ImGui::BeginPopupModal("fctl")) {
-                            const char *current_item = items[fanMods[i * 10 + j]];
-                            if (ImGui::BeginCombo("custom combo", current_item, ImGuiComboFlags_NoArrowButton))
-                            {
-                                for (int n = 0; n < IM_ARRAYSIZE(items); n++)
-                                {
-                                    bool is_selected = (current_item == items[n]);
-                                    if (ImGui::Selectable(items[n], is_selected)) {
-                                        current_item = items[n];
-                                        fanMods[i * 10 + j] = n;
-                                        mediator->notify(EventMessageType::UpdateMonitoringModeUi, std::make_shared<ModeMessage>(ModeMessage{static_cast<int>(i), static_cast<int>(j), n}));
-
-                                    }
-                                    if (is_selected)
-                                        ImGui::SetItemDefaultFocus();
-                                }
-                                ImGui::EndCombo();
-                            }
-                            ImGui::SameLine();
-                            if (ImGui::Button("Close")) {
-                                ImGui::CloseCurrentPopup();
-                            }
-                            ImPlot::CreateContext();
-                            printPlot(i, j);
-                            ImPlot::DestroyContext();
-                            ImGui::EndPopup();
-
-                        }
-                        ImGui::PopID();
-                    }
-                }
+            renderMenuBar();
+            renderPlotButtons();
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2, 2));
+            if (ImGui::BeginTable("FanControlTable", 2, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Fans", ImGuiTableColumnFlags_WidthFixed, 470);
+                ImGui::TableNextColumn();
+                renderTable();
+                renderApplyButton();
+                ImGui::TableNextColumn();
+                renderMonitoring();
                 ImGui::EndTable();
             }
-
-            if (ImGui::Button("Apply")) {
-                if (generalCallbacks.contains("onApply") != 0u) {
-                    for (auto &&c : generalCallbacks["onApply"]) {
-                        c();
-                    }
-                }
-            }
-
-            ImGui::Text(
-                    "%s temp: %d",
-                    cpu_name.c_str(),
-                    static_cast<int>(current_cpu_temp)
-                    );
-
-            ImGui::Text(
-                    "%s temp: %d",
-                    gpu_name.c_str(),
-                    static_cast<int>(current_gpu_temp)
-                    );
-
+            ImGui::PopStyleVar();
             ImGui::End();
         }
 
