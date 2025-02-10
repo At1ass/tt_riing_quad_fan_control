@@ -9,6 +9,7 @@
 #include "gui/ui.hpp"
 #include "gui/window_manager.hpp"
 #include "imgui.h"
+#include "system/CPUController.hpp"
 #include "system/config.hpp"
 #include "system/hidapi_wrapper.hpp"
 #include "system/monitoring.hpp"
@@ -57,7 +58,11 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         });
 
         std::shared_ptr<sys::System> system;
-        sys::Monitoring mon;
+        sys::Monitoring mon(
+                std::make_unique<sys::CPUController>(),
+                std::make_unique<sys::GPUController>()
+                );
+
         wrapper = std::make_shared<sys::HidWrapper>();
         sys::Config::getInstance().setControllerNum(wrapper->controllersNum());
 

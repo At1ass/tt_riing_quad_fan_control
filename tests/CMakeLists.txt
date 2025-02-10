@@ -23,6 +23,11 @@ include_directories(${PROJECT_SOURCE_DIR}/../src)
 set(PROJECT_SOURCES
     ${PROJECT_SOURCE_DIR}/../src/system/config.cpp
     ${PROJECT_SOURCE_DIR}/../src/core/logger.cpp
+    ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
+    # ${PROJECT_SOURCE_DIR}/../src/system/
+    # ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
+    # ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
+
     # ${PROJECT_SOURCE_DIR}/../src/fan_controller.cpp
     # ${PROJECT_SOURCE_DIR}/../src/temperature_monitor.cpp
     # ${PROJECT_SOURCE_DIR}/../src/config_manager.cpp
@@ -31,10 +36,7 @@ set(PROJECT_SOURCES
 # Собираем тестовое приложение
 set(TEST_SOURCES
     test_config.cpp
-    # test_fan_controller.cpp
-    # test_temperature_monitor.cpp
-    # test_config_manager.cpp
-    # test_main.cpp
+    test_monitoring.cpp
 )
 
 add_executable(runTests ${TEST_SOURCES} ${PROJECT_SOURCES})
