@@ -63,7 +63,7 @@ TEST(MonitoringTest, NotifiesObserverOnTemperatureChange) {
         .Times(::testing::AtLeast(1));
 
     // Создаем Monitoring, передавая фиктивные контроллеры.
-    auto monitoring = std::make_unique<sys::Monitoring>(std::move(cpuController), std::move(gpuController));
+    auto monitoring = std::make_unique<sys::Monitoring>(std::move(cpuController), std::move(gpuController), std::chrono::milliseconds(100));
     monitoring->addObserver(observer);
 
     // Ждем, чтобы фоновый поток успел выполнить хотя бы один цикл опроса (в monitoringLoop используется sleep 1 секунда).

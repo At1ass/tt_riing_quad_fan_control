@@ -128,7 +128,6 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
                             sys::Config::getInstance().printConfig(new_system);
                             *system = *new_system;
                             path = std::move(selectedFile);
-                            mon.fullUpdate();
                             fc->reloadAllFans();
                         }
                         catch (const std::exception& e) {

@@ -15,32 +15,28 @@ enable_testing()
 # Если вы используете подмодуль, путь должен указывать на каталог, куда был клонирован googletest.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/googletest ${CMAKE_CURRENT_BINARY_DIR}/googletest)
 
-# Добавляем заголовочные файлы проекта
-include_directories(${PROJECT_SOURCE_DIR}/../include)
-include_directories(${PROJECT_SOURCE_DIR}/../src)
-
-# Если требуется, добавьте исходники проекта для статической линковки
-set(PROJECT_SOURCES
-    ${PROJECT_SOURCE_DIR}/../src/system/config.cpp
-    ${PROJECT_SOURCE_DIR}/../src/core/logger.cpp
-    ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
-    # ${PROJECT_SOURCE_DIR}/../src/system/
-    # ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
-    # ${PROJECT_SOURCE_DIR}/../src/system/monitoring.cpp
-
-    # ${PROJECT_SOURCE_DIR}/../src/fan_controller.cpp
-    # ${PROJECT_SOURCE_DIR}/../src/temperature_monitor.cpp
-    # ${PROJECT_SOURCE_DIR}/../src/config_manager.cpp
-)
-
 # Собираем тестовое приложение
 set(TEST_SOURCES
     test_config.cpp
     test_monitoring.cpp
 )
 
-add_executable(runTests ${TEST_SOURCES} ${PROJECT_SOURCES})
-target_link_libraries(runTests gtest gtest_main)
+add_executable(runTests
+    ${TEST_SOURCES}
+    ${SRC_FILES}
+    ${IMGUI_SOURCES}
+)
+target_link_libraries(runTests
+    gtest
+    gtest_main
+    gmock
+    glfw
+    Vulkan::Vulkan
+    ${GTK3_LIBRARIES}
+    ${AYATANA_LIBRARIES}
+    ${HIDAPI_LIBRARIES}
+    HEADERS_INCLUDE
+)
 
 # Добавляем тест в систему CTest
 add_test(NAME runTests COMMAND runTests)

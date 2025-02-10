@@ -63,28 +63,14 @@ namespace sys {
         return std::round(static_cast<float>(n) / 5.0F) * 5.0F;
     }
 
-    void Monitoring::fullUpdate() {
-        full_update.store(true);
-    }
-
     void Monitoring::update() {
         int temp = 0;
         unsigned int gtemp = 0;
         bool ret = cpu->readCpuTempFile(temp);
         ret = gpu->readGPUTemp(gtemp);
-        if (full_update.load()) {
-            notifyTempChanged(temp, core::EventType::CPU_TEMP_CHANGED);
-            notifyTempChanged(gtemp, core::EventType::GPU_TEMP_CHANGED);
-            full_update.store(false);
-            return;
-        }
 
-        if (cpu_temp != temp) {
-            notifyTempChanged(temp, core::EventType::CPU_TEMP_CHANGED);
-        }
-        if (gpu_temp != gtemp) {
-            notifyTempChanged(gtemp, core::EventType::GPU_TEMP_CHANGED);
-        }
+        notifyTempChanged(temp, core::EventType::CPU_TEMP_CHANGED);
+        notifyTempChanged(gtemp, core::EventType::GPU_TEMP_CHANGED);
 
         cpu_temp = temp;
         gpu_temp = gtemp;

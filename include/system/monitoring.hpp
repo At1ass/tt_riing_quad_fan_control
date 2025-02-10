@@ -32,7 +32,6 @@ namespace sys {
             void addObserver(const std::shared_ptr<core::Observer>& observer);
             void removeObserver(std::shared_ptr<core::Observer> observer);
             void notifyTempChanged(float temp, core::EventType event);
-            void fullUpdate();
             std::string getGpuName();
             std::string getCpuName();
 
@@ -46,7 +45,6 @@ namespace sys {
             int gpu_temp{};
             std::string cpu_name;
             std::atomic<bool> running = true;
-            std::atomic<bool> full_update = false;
             std::thread monitoring_thread;
             std::mutex observer_lock;
             std::chrono::milliseconds interval = std::chrono::seconds(1);
