@@ -17,7 +17,7 @@ build() {
 
   mkdir -p build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release .. || return 1
+  cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. || return 1
   make -j$(nproc) || return 1
 }
 
