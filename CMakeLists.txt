@@ -107,8 +107,8 @@ target_link_libraries(tt_riing_quad_fan_control
 
 # --- Compiler options based on build type ---
 target_compile_options(tt_riing_quad_fan_control PRIVATE
-    $<$<CONFIG:Debug>:-O0 -ggdb -DENABLE_INFO_LOGS>
-    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Debug>:-O0 -ggdb -fno-rtti -DENABLE_INFO_LOGS>
+    $<$<CONFIG:Release>:-O3 -fno-rtti>
 )
 
 # --- Installation commands ---
