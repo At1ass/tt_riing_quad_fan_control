@@ -26,7 +26,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release .
 
     - name: Build project
-      run: cmake --build .
+      run: make runTests
 
     - name: Run tests
       run: ./tests/runTests
