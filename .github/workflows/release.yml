@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'  # Запускается при пуше тега вида v1.0.0
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -22,7 +25,7 @@ jobs:
           # Конфигурируем сборку (например, с помощью CMake)
           git submodule update --init --recursive
           export CXX=/usr/bin/g++-14
-          cmake -DCMAKE_BUILD_TYPE=Release .
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .
           cmake --build .
           # Если нужно собрать архив с бинарными файлами, можно добавить шаг упаковки:
           tar -czvf tt_riing_quad_fan_control.tar.gz tt_riing_quad_fan_control

@@ -30,9 +30,3 @@ jobs:
 
     - name: Run tests
       run: ./tests/runTests
-
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifact
-        path: ./tt_riing_quad_fan_control
