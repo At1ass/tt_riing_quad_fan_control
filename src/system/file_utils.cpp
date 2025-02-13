@@ -1,108 +1,107 @@
 #include "system/file_utils.hpp"
+
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <climits>
 #include <cstring>
-#include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <vector>
 
 #ifndef PROCDIR
 #define PROCDIR "/proc"
 #endif
 
-auto readLine(const std::string& filename) -> std::string
-{
+auto readLine(std::string const& filename) -> std::string {
     std::string line;
     std::ifstream file(filename);
-    if (file.fail()){
+    if (file.fail()) {
         return line;
     }
     std::getline(file, line);
     return line;
 }
 
-auto getBasename(const std::string&& path) -> std::string
-{
+auto getBasename(std::string const&& path) -> std::string {
     auto npos = path.find_last_of("/\\");
     if (npos == std::string::npos) {
         return path;
-}
+    }
 
     if (npos < path.size() - 1) {
         return path.substr(npos + 1);
-}
+    }
     return path;
 }
 
 #ifdef __linux__
-auto ls(const char* root, const char* prefix, LS_FLAGS flags) -> std::vector<std::string>
-{
+auto ls(std::filesystem::path const& root, std::string_view prefix,
+        LsFlags flags) -> std::vector<std::string> {
     std::vector<std::string> list;
-    struct dirent* dp = nullptr;
+    std::error_code ec;
 
-    DIR* dirp = opendir(root);
-    if (dirp == nullptr) {
-        std::cerr << std::format("Error opening directory '{}': {}", root, strerror(errno)) << '\n';
+    namespace fs = std::filesystem;
+    if (!fs::exists(root, ec)) {
+        std::cerr << std::format("Error: directory '{}' does not exist.\n",
+                                 root.string());
         return list;
     }
 
-    while ((dp = readdir(dirp)) != nullptr) {
-        if (((prefix != nullptr) && !std::string(dp->d_name).starts_with(prefix))
-            || (strcmp(dp->d_name, ".") == 0)
-            || (strcmp(dp->d_name, "..") == 0)) {
-            continue;
-}
-
-        switch (dp->d_type) {
-        case DT_LNK: {
-            struct stat s{};
-            std::string path(root);
-            if (path.back() != '/') {
-                path += "/";
-}
-            path += dp->d_name;
-
-            if (stat(path.c_str(), &s) != 0) {
-                continue;
-}
-
-            if ((((flags & LS_DIRS) != 0) && S_ISDIR(s.st_mode))
-                || (((flags & LS_FILES) != 0) && S_ISREG(s.st_mode))) {
-                list.emplace_back(dp->d_name);
-            }
+    for (auto const& entry : fs::directory_iterator(root, ec)) {
+        if (ec) {
+            std::cerr << std::format("Error iterating directory '{}': {}\n",
+                                     root.string(), ec.message());
             break;
         }
-        case DT_DIR:
-            if ((flags & LS_DIRS) != 0) {
-                list.emplace_back(dp->d_name);
-}
-            break;
-        case DT_REG:
-            if ((flags & LS_FILES) != 0) {
-                list.emplace_back(dp->d_name);
-}
-            break;
+
+        // Получаем имя файла/каталога
+        std::string name = entry.path().filename().string();
+
+        // Пропускаем если задан префикс и имя не начинается с него, или если
+        // имя
+        // "." или ".."
+        if ((!prefix.empty() && !name.starts_with(prefix)) || name == "." ||
+            name == "..") {
+            continue;
+        }
+
+        // Если элемент — символьная ссылка, получаем статус целевого объекта
+        if (entry.is_symlink(ec)) {
+            auto target_status = fs::status(entry, ec);
+            if (ec) continue;
+            if ((flags & LS_DIRS) && fs::is_directory(target_status)) {
+                list.push_back(name);
+            } else if ((flags & LS_FILES) &&
+                       fs::is_regular_file(target_status)) {
+                list.push_back(name);
+            }
+        } else if (entry.is_directory(ec)) {
+            if (flags & LS_DIRS) {
+                list.push_back(name);
+            }
+        } else if (entry.is_regular_file(ec)) {
+            if (flags & LS_FILES) {
+                list.push_back(name);
+            }
         }
     }
 
-    closedir(dirp);
     return list;
 }
 
-auto fileExists(const std::string& path) -> bool
-{
+auto fileExists(std::string const& path) -> bool {
     struct stat s{};
     return (stat(path.c_str(), &s) == 0) && !S_ISDIR(s.st_mode);
 }
 
-auto dirExists(const std::string& path) -> bool
-{
+auto dirExists(std::string const& path) -> bool {
     struct stat s{};
     return (stat(path.c_str(), &s) == 0) && S_ISDIR(s.st_mode);
 }
 
-#endif // __linux__
+#endif  // __linux__

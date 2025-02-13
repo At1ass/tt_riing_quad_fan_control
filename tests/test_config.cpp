@@ -1,151 +1,209 @@
 // tests/test_fan.cpp
 #include <gtest/gtest.h>
+
 #include <iostream>
 #include <sstream>
+
 #include "core/logger.hpp"
 #include "system/config.hpp"
-static std::string syntaxError =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }{ x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
 
-static std::string incorrectContentCpNum =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
+static std::string const SYNTAX_ERROR =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }{ x = 40.0, y = 60.0 "
+    "}, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
-static std::string incorrectContentCpData =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 60.0, y = 40.0 }, { x = 60, y = 40 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
+static std::string const INCORRECT_CONTENT_CP_NUM =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 60.0, y = "
+    "40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
-static std::string incorrectCPStructure =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = {  x = 0.0, y = 0.0 }, Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
+static std::string const INCORRECT_CONTENT_CP_DATA =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 60.0, y = "
+    "40.0 }, { x = 60, y = 40 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
-static std::string incorrectMonitoringMode =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 2,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
+static std::string const INCORRECT_CP_STRUCTURE =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = {  x = 0.0, y = 0.0 }, Monitoring = 1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
-static std::string incorrectFanData =
-        " saved = ["
-        "     ["
-        "       ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "       ]"
-        "     ],"
-        " ]";
+static std::string const INCORRECT_MONITORING_MODE =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "2,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
-static std::string expectedContent =
-        " saved = ["
-        "     ["
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0,"
-        " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
-        " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
-        "         },"
-        "     ],"
-        " ]";
+static std::string const INCORRECT_FAN_DATA =
+    " saved = ["
+    "     ["
+    "       ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "       ]"
+    "     ],"
+    " ]";
+
+static std::string const EXPECTED_CONTENT =
+    " saved = ["
+    "     ["
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "1,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "         { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = "
+    "60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = "
+    "0,"
+    " Speeds = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, "
+    "50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],"
+    " Temps = [ 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, "
+    "50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 ] "
+    "         },"
+    "     ],"
+    " ]";
 
 class ConfigTestF : public ::testing::Test {
-    protected:
-        std::pair<std::vector<double>, std::vector<double>> test_fan_data_default;
-        std::array<std::pair<double, double>, 4> test_fan_cp_default;
+   protected:
+    std::pair<std::vector<double>, std::vector<double>>
+        test_fan_data_default;                                     // NOLINT
+    std::array<std::pair<double, double>, 4> test_fan_cp_default;  // NOLINT
 
-        ConfigTestF(){
-            test_fan_data_default =
-                std::make_pair<std::vector<double>, std::vector<double>>(
-                        { 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0 },
-                        { 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0 }
-                        );
+    ConfigTestF() {
+        test_fan_data_default =
+            std::make_pair<std::vector<double>, std::vector<double>>(
+                {0.0,  5.0,  10.0, 15.0, 20.0, 25.0, 30.0,
+                 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0,
+                 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0},
+                {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0});
 
-            test_fan_cp_default =
-            {
-                std::make_pair<double, double>(0.0, 0.0),
-                std::make_pair<double, double>(40.0, 60.0),
-                std::make_pair<double, double>(60.0, 40.0),
-                std::make_pair<double, double>(100.0, 100.0)
-            };
-        }
+        test_fan_cp_default = {std::make_pair<double, double>(0.0, 0.0),
+                               std::make_pair<double, double>(40.0, 60.0),
+                               std::make_pair<double, double>(60.0, 40.0),
+                               std::make_pair<double, double>(100.0, 100.0)};
+    }
 };
 
 TEST(ConfigTest, DefaultSpeedOnTempZero) {
     sys::Fan fan;
     sys::FanSpeedData data = fan.getData();
     sys::FanBezierData bdata = fan.getBData();
-    EXPECT_EQ(data.getSpeedForTemp(0), 50.0) << "After create FanSpeedData speed must be 50";
-    EXPECT_NEAR(bdata.getSpeedForTemp(0), 0, 0.01) << "After create FanBezierData speed must be 0 for temp 0.";
+    EXPECT_EQ(data.getSpeedForTemp(0), 50.0)
+        << "After create FanSpeedData speed must be 50";
+    EXPECT_NEAR(bdata.getSpeedForTemp(0), 0, 0.01)
+        << "After create FanBezierData speed must be 0 for temp 0.";
 }
 
 TEST_F(ConfigTestF, ReadConfig) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << expectedContent;
+    ofs << EXPECTED_CONTENT;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
     auto c = sys->getControllers();
 
     // 4. Сравниваем полученное содержимое с ожидаемым.
@@ -162,160 +220,178 @@ TEST_F(ConfigTestF, ReadConfig) {
         auto data = f[i].getData().getData();
         auto bdata = f[i].getBData().getData();
 
-        EXPECT_EQ(data, test_fan_data_default) << "Incorrect reading speed and temp";
-        EXPECT_EQ(bdata, test_fan_cp_default) << "INcorrect readin control points";
+        EXPECT_EQ(data, test_fan_data_default)
+            << "Incorrect reading speed and temp";
+        EXPECT_EQ(bdata, test_fan_cp_default)
+            << "Incorrect reading control points";
     }
 
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowSyntaxError) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << syntaxError;
+    ofs << SYNTAX_ERROR;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
-    EXPECT_ANY_THROW(sys::Config::getInstance().parseConfig(tempFileName));
+    EXPECT_ANY_THROW(sys::Config::getInstance().parseConfig(temp_file_name));
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowIncorrectConfigStructure) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << incorrectCPStructure;
+    ofs << INCORRECT_CP_STRUCTURE;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
     try {
-        std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
-        FAIL() << "Expected std::runtime_error exception, but it was not thrown.";
-    } catch (const std::runtime_error& e) {
+        std::shared_ptr<sys::System> sys =
+            sys::Config::getInstance().parseConfig(temp_file_name);
+        FAIL()
+            << "Expected std::runtime_error exception, but it was not thrown.";
+    } catch (std::runtime_error const& e) {
         EXPECT_STREQ(e.what(), "Incorrect config structure");
     } catch (...) {
-        FAIL() << "Expected std::runtime_error exception, but it thrown another exception";
+        FAIL() << "Expected std::runtime_error exception, but it thrown "
+                  "another exception";
     }
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowIncorrectMonitoringMode) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << incorrectMonitoringMode;
+    ofs << INCORRECT_MONITORING_MODE;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
     try {
-        std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
-        FAIL() << "Expected std::runtime_error exception, but it was not thrown.";
-    } catch (const std::runtime_error& e) {
+        std::shared_ptr<sys::System> sys =
+            sys::Config::getInstance().parseConfig(temp_file_name);
+        FAIL()
+            << "Expected std::runtime_error exception, but it was not thrown.";
+    } catch (std::runtime_error const& e) {
         EXPECT_STREQ(e.what(), "Incorrect monitoring mode");
     } catch (...) {
-        FAIL() << "Expected std::runtime_error exception, but it thrown another exception";
+        FAIL() << "Expected std::runtime_error exception, but it thrown "
+                  "another exception";
     }
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowIncorrectFanData) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << incorrectFanData;
+    ofs << INCORRECT_FAN_DATA;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
     try {
-        std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
-        FAIL() << "Expected std::runtime_error exception, but it was not thrown.";
-    } catch (const std::runtime_error& e) {
+        std::shared_ptr<sys::System> sys =
+            sys::Config::getInstance().parseConfig(temp_file_name);
+        FAIL()
+            << "Expected std::runtime_error exception, but it was not thrown.";
+    } catch (std::runtime_error const& e) {
         EXPECT_STREQ(e.what(), "Incorrect fan data");
     } catch (...) {
-        FAIL() << "Expected std::runtime_error exception, but it thrown another exception";
+        FAIL() << "Expected std::runtime_error exception, but it thrown "
+                  "another exception";
     }
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowIncorrectCPNum) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << incorrectContentCpNum;
+    ofs << INCORRECT_CONTENT_CP_NUM;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
     try {
-        std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
-        FAIL() << "Expected std::runtime_error exception, but it was not thrown.";
-    } catch (const std::runtime_error& e) {
+        std::shared_ptr<sys::System> sys =
+            sys::Config::getInstance().parseConfig(temp_file_name);
+        FAIL()
+            << "Expected std::runtime_error exception, but it was not thrown.";
+    } catch (std::runtime_error const& e) {
         EXPECT_STREQ(e.what(), "Control points count must be 4");
     } catch (...) {
-        FAIL() << "Expected std::runtime_error exception, but it thrown another exception";
+        FAIL() << "Expected std::runtime_error exception, but it thrown "
+                  "another exception";
     }
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, ReadConfigThrowIncorrectCPData) {
- // 1. Создаём временный файл.
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    // 1. Создаём временный файл.
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 2. Записываем тестовые данные.
-    ofs << incorrectContentCpData;
+    ofs << INCORRECT_CONTENT_CP_DATA;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
     try {
-        std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
-        FAIL() << "Expected std::runtime_error exception, but it was not thrown.";
-    } catch (const std::runtime_error& e) {
+        std::shared_ptr<sys::System> sys =
+            sys::Config::getInstance().parseConfig(temp_file_name);
+        FAIL()
+            << "Expected std::runtime_error exception, but it was not thrown.";
+    } catch (std::runtime_error const& e) {
         EXPECT_STREQ(e.what(), "Incorrect cp data");
     } catch (...) {
-        FAIL() << "Expected std::runtime_error exception, but it thrown another exception";
+        FAIL() << "Expected std::runtime_error exception, but it thrown "
+                  "another exception";
     }
 
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST_F(ConfigTestF, DummyFansTest) {
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     sys::Config::getInstance().setControllerNum(3);
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
     auto c = sys->getControllers();
 
     // 4. Сравниваем полученное содержимое с ожидаемым.
     ASSERT_EQ(c.size(), 3) << "Must be readed three controller settings";
 
-    for (auto && controller : c) {
+    for (auto&& controller : c) {
         auto f = controller.getFans();
 
         ASSERT_EQ(f.size(), 5) << "Must be readed 2 fans settrings";
@@ -326,74 +402,79 @@ TEST_F(ConfigTestF, DummyFansTest) {
             auto data = f[i].getData().getData();
             auto bdata = f[i].getBData().getData();
 
-            EXPECT_EQ(data, test_fan_data_default) << "Incorrect reading speed and temp";
-            EXPECT_EQ(bdata, test_fan_cp_default) << "INcorrect readin control points";
+            EXPECT_EQ(data, test_fan_data_default)
+                << "Incorrect reading speed and temp";
+            EXPECT_EQ(bdata, test_fan_cp_default)
+                << "Incorrect reading control points";
         }
     }
 
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST_F(ConfigTestF, DummyFansTestIfCnumZero) {
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     sys::Config::getInstance().setControllerNum(0);
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
     auto c = sys->getControllers();
 
     // 4. Сравниваем полученное содержимое с ожидаемым.
     ASSERT_EQ(c.size(), 0) << "Controller settings is empty";
 
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST_F(ConfigTestF, DummyFansTestIfCnumNotSet) {
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
     auto c = sys->getControllers();
 
     // 4. Сравниваем полученное содержимое с ожидаемым.
     ASSERT_EQ(c.size(), 0) << "Controller settings is empty";
 
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
 TEST(ConfigTest, PrintConfigTest) {
-    std::string tempFileName = "temp_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    std::string temp_file_name = "temp_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
-    ofs << expectedContent;
+    ofs << EXPECTED_CONTENT;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
 
-    std::streambuf* oldCoutBuf = std::cout.rdbuf();
-    std::ostringstream outputBuffer;
-    std::cout.rdbuf(outputBuffer.rdbuf());
+    std::streambuf* old_cout_buf = std::cout.rdbuf();
+    std::ostringstream output_buffer;
+    std::cout.rdbuf(output_buffer.rdbuf());
 
     sys::Config::getInstance().printConfig(sys);
 
-    std::cout.rdbuf(oldCoutBuf);
+    std::cout.rdbuf(old_cout_buf);
 
-    EXPECT_EQ(outputBuffer.str(), "");
+    EXPECT_EQ(output_buffer.str(), "");
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
+    std::remove(temp_file_name.c_str());
 }
 
-static std::string removeNewlines(const std::string& input) {
+static std::string removeNewlines(std::string const& input) {
     std::string output;
     for (char c : input) {
         if (c != '\n' && c != '\r') {
@@ -404,35 +485,63 @@ static std::string removeNewlines(const std::string& input) {
 }
 
 TEST(ConfigTest, WriteToFileConfigTest) {
-    std::string tempFileName = "temp_test_file.txt";
-    std::string tempOutputFileName = "temp_output_test_file.txt";
-    std::ofstream ofs(tempFileName);
+    std::string temp_file_name = "temp_test_file.txt";
+    std::string temp_output_file_name = "temp_output_test_file.txt";
+    std::ofstream ofs(temp_file_name);
     ASSERT_TRUE(ofs.is_open()) << "Failed open config file";
 
-    ofs << expectedContent;
+    ofs << EXPECTED_CONTENT;
     ofs.close();
 
     // 3. Вызываем функцию чтения файла.
-    std::shared_ptr<sys::System> sys = sys::Config::getInstance().parseConfig(tempFileName);
+    std::shared_ptr<sys::System> sys =
+        sys::Config::getInstance().parseConfig(temp_file_name);
     try {
-        sys::Config::getInstance().writeToFile(tempOutputFileName);
-    } catch (const std::exception& e) {
+        sys::Config::getInstance().writeToFile(temp_output_file_name);
+    } catch (std::exception const& e) {
         FAIL() << e.what() << std::endl;
     }
 
-    std::ifstream ifs(tempOutputFileName);
+    std::ifstream ifs(temp_output_file_name);
     ASSERT_TRUE(ifs.is_open()) << "Failed open config file";
-    std::stringstream expectedOutput;
+    std::stringstream expected_output;
 
     std::cout << "Hi\n";
-    expectedOutput << ifs.rdbuf();
+    expected_output << ifs.rdbuf();
     ifs.close();
 
-    std::string expected = "saved = [    [        { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 1, Speeds = [            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0        ], Temps = [            0.0,            5.0,            10.0,            15.0,            20.0,            25.0,            30.0,            35.0,            40.0,            45.0,            50.0,            55.0,            60.0,            65.0,            70.0,            75.0,            80.0,            85.0,            90.0,            95.0,            100.0        ] },        { 'Control points' = [ { x = 0.0, y = 0.0 }, { x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 } ], Monitoring = 0, Speeds = [            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0,            50.0        ], Temps = [            0.0,            5.0,            10.0,            15.0,            20.0,            25.0,            30.0,            35.0,            40.0,            45.0,            50.0,            55.0,            60.0,            65.0,            70.0,            75.0,            80.0,            85.0,            90.0,            95.0,            100.0        ] }    ]]";
+    std::string expected =
+        "saved = [    [        { 'Control points' = [ { x = 0.0, y = 0.0 }, { "
+        "x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = 100.0 "
+        "} ], Monitoring = 1, Speeds = [            50.0,            50.0,     "
+        "       50.0,            50.0,            50.0,            50.0,       "
+        "     50.0,            50.0,            50.0,            50.0,         "
+        "   50.0,            50.0,            50.0,            50.0,           "
+        " 50.0,            50.0,            50.0,            50.0,            "
+        "50.0,            50.0,            50.0        ], Temps = [            "
+        "0.0,            5.0,            10.0,            15.0,            "
+        "20.0,            25.0,            30.0,            35.0,            "
+        "40.0,            45.0,            50.0,            55.0,            "
+        "60.0,            65.0,            70.0,            75.0,            "
+        "80.0,            85.0,            90.0,            95.0,            "
+        "100.0        ] },        { 'Control points' = [ { x = 0.0, y = 0.0 }, "
+        "{ x = 40.0, y = 60.0 }, { x = 60.0, y = 40.0 }, { x = 100.0, y = "
+        "100.0 } ], Monitoring = 0, Speeds = [            50.0,            "
+        "50.0,            50.0,            50.0,            50.0,            "
+        "50.0,            50.0,            50.0,            50.0,            "
+        "50.0,            50.0,            50.0,            50.0,            "
+        "50.0,            50.0,            50.0,            50.0,            "
+        "50.0,            50.0,            50.0,            50.0        ], "
+        "Temps = [            0.0,            5.0,            10.0,            "
+        "15.0,            20.0,            25.0,            30.0,            "
+        "35.0,            40.0,            45.0,            50.0,            "
+        "55.0,            60.0,            65.0,            70.0,            "
+        "75.0,            80.0,            85.0,            90.0,            "
+        "95.0,            100.0        ] }    ]]";
 
-    EXPECT_EQ(removeNewlines(expectedOutput.str()), expected);
+    EXPECT_EQ(removeNewlines(expected_output.str()), expected);
 
     // 5. Удаляем временный файл.
-    std::remove(tempFileName.c_str());
-    std::remove(tempOutputFileName.c_str());
+    std::remove(temp_file_name.c_str());
+    std::remove(temp_output_file_name.c_str());
 }

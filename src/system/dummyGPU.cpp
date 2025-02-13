@@ -1,18 +1,16 @@
 #include "system/dummyGPU.hpp"
 
-namespace sys {
-    DummyGPU::DummyGPU() {
-        gpu_name = "Unknown GPU";
-        gpu_temp = 50;
-    }
+constexpr int const DEFAULT_SPEED = 50;
 
-    float DummyGPU::getGPUTemp() {
-        return gpu_temp;
-    }
-    std::string DummyGPU::getGPUName() {
-        return gpu_name;
-    }
-    bool DummyGPU::readGPUTemp(unsigned int& temp) {
-        return true;
-    }
+namespace sys {
+
+DummyGPU::DummyGPU() {
+    gpu_name = "Unknown GPU";
+    gpu_temp = DEFAULT_SPEED;
 }
+
+auto DummyGPU::getGPUTemp() -> unsigned int { return gpu_temp; }
+auto DummyGPU::getGPUName() -> std::string { return gpu_name; }
+bool DummyGPU::readGPUTemp(unsigned int& temp) { return true; }
+
+}  // namespace sys

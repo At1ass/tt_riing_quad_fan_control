@@ -1,23 +1,49 @@
+---
 Checks: >
-  -*,                            # Сначала отключаем все проверки
-  readability-identifier-naming  # Включаем проверку именования
-
+  -*,
+  google-*,
+  cppcoreguidelines-*,
+  readability-identifier-naming
 CheckOptions:
+  # Правила именования классов, структур, перечислений — UpperCamelCase
   - key: readability-identifier-naming.ClassCase
-    value: CamelCase            # Имена классов должны быть CamelCase
-  - key: readability-identifier-naming.FunctionCase
-    value: camelBack            # Или lowerCamelCase (тоже вариант)
-  - key: readability-identifier-naming.MemberCase
-    value: lowerCamelCase
-  - key: readability-identifier-naming.VariableCase
-    value: lower_snake_case
-  - key: readability-identifier-naming.ParameterCase
-    value: lowerCamelCase
-  - key: readability-identifier-naming.NamespaceCase
-    value: PascalCase
-  - key: readability-identifier-naming.ClassMemberSuffix
-    value: _  # Напр. поля класса заканчиваются на '_'
-  # и т.д.
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
 
-WarningsAsErrors: ''
-HeaderFilterRegex: '.*'
+  # Правила именования функций — lowerCamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+
+  # Параметры функций — lower_case_with_underscores
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+
+  # Локальные переменные — lower_case_with_underscores
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+
+  # Глобальные переменные — lower_case_with_underscores
+  - key: readability-identifier-naming.GlobalVariableCase
+    value: lower_case
+
+  # Члены класса — lower_case_with_underscores с суффиксом "_"
+  - key: readability-identifier-naming.MemberVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.MemberVariableSuffix
+    value: "_"
+
+  # Статические переменные — lower_case_with_underscores
+  - key: readability-identifier-naming.StaticVariableCase
+    value: lower_case
+
+  # Константы — UPPER_CASE
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+
+  # Макросы — UPPER_CASE
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+...

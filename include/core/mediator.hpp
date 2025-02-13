@@ -2,41 +2,35 @@
 #define __MEDIATOR_HPP__
 
 #include <memory>
-#include <vector>
 
 enum class EventMessageType {
-    Initialize,  // Инициализация данных
-    UpdateGraph, // Обновление графиков (изменение через GUI)
-    UpdateFan,    // Обновление данных вентилятора (изменение в системе)
-    UpdateMonitoringModeUi,
-    UpdateMonitoringModeFan
+    INITIALIZE,    // Инициализация данных
+    UPDATE_GRAPH,  // Обновление графиков (изменение через GUI)
+    UPDATE_FAN,    // Обновление данных вентилятора (изменение в системе)
+    UPDATE_MONITORING_MODE_UI,
+    UPDATE_MONITORING_MODE_FAN
 };
 
 struct Message {
-    int c_idx;
-    int f_idx;
+    std::size_t c_idx;
+    std::size_t f_idx;
 };
 
 namespace core {
-    /*class IMediator {*/
-    /*    public:*/
-    /*        virtual ~IMediator() = default;*/
-    /**/
-    /*        virtual void notify(this auto&& self, EventMessageType eventType, std::shared_ptr<Message> msg) = 0;*/
-    /*};*/
 
-    class Mediator {
-        public:
-            virtual ~Mediator() = default;
-            virtual void notify(EventMessageType eventType, std::shared_ptr<Message> msg) = 0;
-    };
-    /*class Mediator {*/
-    /*    public:*/
-    /*        virtual ~Mediator() = default;*/
-    /**/
-    /*        void notify(this auto&& self, EventMessageType eventType, std::shared_ptr<Message> msg) {*/
-    /*            self.dispatch(eventType, msg);*/
-    /*        }*/
-    /*};*/
-}
-#endif //!__MEDIATOR_HPP_
+class Mediator {
+   public:
+    Mediator(Mediator const&) = default;
+    Mediator(Mediator&&) = delete;
+    Mediator& operator=(Mediator const&) = default;
+    Mediator& operator=(Mediator&&) = delete;
+    virtual ~Mediator() = default;
+    virtual void notify(EventMessageType event_type,
+                        std::shared_ptr<Message> msg) = 0;
+
+   protected:
+    Mediator() = default;
+};
+
+}  // namespace core
+#endif  //!__MEDIATOR_HPP_

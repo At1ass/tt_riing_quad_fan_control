@@ -1,3 +1,9 @@
+#include <pthread.h>
+#include <unistd.h>
+
+#include <filesystem>
+#include <functional>
+
 #include "core/fan_controller.hpp"
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
@@ -14,85 +20,86 @@
 #include "system/hidapi_wrapper.hpp"
 #include "system/monitoring.hpp"
 #include "system/vulkan.hpp"
-#include <filesystem>
-#include <functional>
-#include <pthread.h>
-#include <unistd.h>
 
+constexpr int WIDTH = 1280;
+constexpr int HEIGHT = 720;
 
-auto main(int  /*argc*/, char**  /*argv*/) -> int
-{
-    core::Logger::log_.enableColorLogging(true);
+auto main(int /*argc*/, char** /*argv*/) -> int {
+    core::Logger::log.enableColorLogging(true);
 
     try {
         std::shared_ptr<sys::HidWrapper> wrapper;
         std::string path;
 
-        auto win_manager = std::make_shared<gui::WindowManager>("Fan Control", 1280, 720);
+        auto win_manager =
+            std::make_shared<gui::WindowManager>("Fan Control", WIDTH, HEIGHT);
 
         auto tray_manager = std::make_shared<gui::GTKTrayManager>();
 
-        tray_manager->setOnToggleCallback([&](){
-            bool windowHidden = win_manager->windowHided();
+        tray_manager->setOnToggleCallback([&]() {
+            bool window_hidden = win_manager->windowHided();
 
-            if (windowHidden) {
-                core::Logger::log_(core::LogLevel::INFO) << "Restoring window from tray" << std::endl;
+            if (window_hidden) {
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Restoring window from tray" << std::endl;
                 win_manager->showWindow();
             } else {
-                core::Logger::log_(core::LogLevel::INFO) << "Hiding window to tray" << std::endl;
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Hiding window to tray" << std::endl;
                 win_manager->hideWindow();
             }
 
-            windowHidden = !windowHidden;
+            window_hidden = !window_hidden;
         });
 
-        tray_manager->setOnQuitCallback([&](){
-            core::Logger::log_(core::LogLevel::INFO) << "Quit requested from tray." << std::endl;
-            win_manager->closeWindow(); // Закрываем GLFW
+        tray_manager->setOnQuitCallback([&]() {
+            core::Logger::log(core::LogLevel::INFO)
+                << "Quit requested from tray." << std::endl;
+            win_manager->closeWindow();  // Закрываем GLFW
             tray_manager->cleanup();
         });
 
-        win_manager->setOnCloseCallback([&](){
-            core::Logger::log_(core::LogLevel::INFO) << "Window closed via close button." << std::endl;
+        win_manager->setOnCloseCallback([&]() {
+            core::Logger::log(core::LogLevel::INFO)
+                << "Window closed via close button." << std::endl;
             win_manager->hideWindow();
         });
 
         std::shared_ptr<sys::System> system;
-        sys::Monitoring mon(
-                std::make_unique<sys::CPUController>(),
-                std::make_unique<sys::GPUController>()
-                );
+        sys::Monitoring mon(std::make_unique<sys::CPUController>(),
+                            std::make_unique<sys::GPUController>());
 
         wrapper = std::make_shared<sys::HidWrapper>();
         sys::Config::getInstance().setControllerNum(wrapper->controllersNum());
 
-        std::string const home_dir(getenv("HOME"));
-        path = home_dir + "/.config/config2.toml";
+        std::string const HOME_DIR(getenv("HOME"));
+        path = HOME_DIR + "/.config/config2.toml";
 
         if (std::filesystem::exists(path)) {
             try {
                 system = sys::Config::getInstance().parseConfig(path);
-            }
-            catch (std::exception e) {
-                core::Logger::log_(core::LogLevel::ERROR) << "Failed read config: " << e.what() << std::endl;
+            } catch (std::exception e) {
+                core::Logger::log(core::LogLevel::ERROR)
+                    << "Failed read config: " << e.what() << std::endl;
                 std::terminate();
             }
             sys::Config::getInstance().printConfig(system);
-        }
-        else {
+        } else {
             system = std::make_shared<sys::System>();
             sys::Config::getInstance().initDummyFans(system);
             sys::Config::getInstance().printConfig(system);
         }
 
+        std::shared_ptr<core::FanController> const FC =
+            std::make_shared<core::FanController>(system, wrapper);
 
-        std::shared_ptr<core::FanController> const fc = std::make_shared<core::FanController>(system, wrapper);
+        std::shared_ptr<core::ObserverCPU> const CPU_O =
+            std::make_shared<core::ObserverCPU>(FC);
+        std::shared_ptr<core::ObserverGPU> const GPU_O =
+            std::make_shared<core::ObserverGPU>(FC);
 
-        std::shared_ptr<core::ObserverCPU> const cpu_o = std::make_shared<core::ObserverCPU>(fc);
-        std::shared_ptr<core::ObserverGPU> const gpu_o = std::make_shared<core::ObserverGPU>(fc);
-
-        mon.addObserver(cpu_o);
-        mon.addObserver(gpu_o);
+        mon.addObserver(CPU_O);
+        mon.addObserver(GPU_O);
 
         sys::Vulkan::setupVulkan(*gui::GuiManager::extensions());
         sys::Vulkan::createVulkanSurface(win_manager->getWindow().get());
@@ -100,80 +107,102 @@ auto main(int  /*argc*/, char**  /*argv*/) -> int
         win_manager->createFramebuffers();
         win_manager->hideWindow();
 
-        std::shared_ptr<gui::GuiManager> const gui = std::make_shared<gui::GuiManager>(win_manager->getWindow());
+        std::shared_ptr<gui::GuiManager> const GUI =
+            std::make_shared<gui::GuiManager>(win_manager->getWindow());
 
-        std::shared_ptr<core::ObserverUiCPU> const ui_cpu_o = std::make_shared<core::ObserverUiCPU>(gui);
-        std::shared_ptr<core::ObserverUiGPU> const ui_gpu_o = std::make_shared<core::ObserverUiGPU>(gui);
+        std::shared_ptr<core::ObserverUiCPU> const UI_CPU_O =
+            std::make_shared<core::ObserverUiCPU>(GUI);
+        std::shared_ptr<core::ObserverUiGPU> const UI_GPU_O =
+            std::make_shared<core::ObserverUiGPU>(GUI);
 
-        mon.addObserver(ui_cpu_o);
-        mon.addObserver(ui_gpu_o);
+        mon.addObserver(UI_CPU_O);
+        mon.addObserver(UI_GPU_O);
 
-        gui->setGPUName(mon.getGpuName());
-        gui->setCPUName(mon.getCpuName());
+        GUI->setGPUName(mon.getGpuName());
+        GUI->setCPUName(mon.getCpuName());
 
-        gui->setStrategy(std::make_unique<core::PointPlotStrategy>());
-        auto mediator = std::make_shared<core::FanMediator>(gui, fc);
+        GUI->setStrategy(std::make_unique<core::PointPlotStrategy>());
+        auto mediator = std::make_shared<core::FanMediator>(GUI, FC);
 
-        gui->setMediator(mediator);
-        fc->setMediator(mediator);
+        GUI->setMediator(mediator);
+        FC->setMediator(mediator);
 
-        mediator->notify(EventMessageType::Initialize, std::make_shared<Message>(Message{}));
+        mediator->notify(EventMessageType::INITIALIZE,
+                         std::make_shared<Message>(Message{}));
 
-        gui->setCallbacks(
-                "onOpenFile", std::function<void(const std::string&)>([&](const std::string& filePath) {
-                    tray_manager->openFileDialog([&](const std::string& selectedFile) {
-                        core::Logger::log_(core::LogLevel::INFO) << "File selected: " << selectedFile << std::endl;
-                        try {
-                            auto new_system = sys::Config::getInstance().parseConfig(selectedFile);
-                            sys::Config::getInstance().printConfig(new_system);
-                            *system = *new_system;
-                            path = std::move(selectedFile);
-                            fc->reloadAllFans();
-                        }
-                        catch (const std::exception& e) {
-                            core::Logger::log_(core::LogLevel::ERROR) << "Failed reading config: " << e.what() << std::endl;
-                        }
-                    });
-                    core::Logger::log_(core::LogLevel::INFO) << "Opening file: " << filePath << std::endl;
+        GUI->setCallbacks(
+            "onOpenFile",
+            std::function<void(std::string const&)>(
+                [&](std::string const& file_path) {
+                    tray_manager->openFileDialog(
+                        [&](std::string const& selected_file) {
+                            core::Logger::log(core::LogLevel::INFO)
+                                << "File selected: " << selected_file
+                                << std::endl;
+                            try {
+                                auto new_system =
+                                    sys::Config::getInstance().parseConfig(
+                                        selected_file);
+                                sys::Config::getInstance().printConfig(
+                                    new_system);
+                                *system = *new_system;
+                                path = std::move(selected_file);
+                                FC->reloadAllFans();
+                            } catch (std::exception const& e) {
+                                core::Logger::log(core::LogLevel::ERROR)
+                                    << "Failed reading config: " << e.what()
+                                    << std::endl;
+                            }
+                        });
+                    core::Logger::log(core::LogLevel::INFO)
+                        << "Opening file: " << file_path << std::endl;
                 }),
-                "onSaveFile", std::function<void(const std::string&)>([&](const std::string& filePath) {
-                    tray_manager->saveFileDialog([&](const std::string& savedFile){
-                        core::Logger::log_(core::LogLevel::INFO) << "File selected: " << savedFile << std::endl;
-                        sys::Config::getInstance().updateConf(system);
-                        sys::Config::getInstance().writeToFile(savedFile);
-                    });
-                    core::Logger::log_(core::LogLevel::INFO) << "Saving file: " << filePath << std::endl;
+            "onSaveFile",
+            std::function<void(std::string const&)>(
+                [&](std::string const& file_path) {
+                    tray_manager->saveFileDialog(
+                        [&](std::string const& saved_file) {
+                            core::Logger::log(core::LogLevel::INFO)
+                                << "File selected: " << saved_file << std::endl;
+                            sys::Config::getInstance().updateConf(system);
+                            sys::Config::getInstance().writeToFile(saved_file);
+                        });
+                    core::Logger::log(core::LogLevel::INFO)
+                        << "Saving file: " << file_path << std::endl;
                 }),
-                "onApply", std::function<void()>([&](){
-                    core::Logger::log_(core::LogLevel::INFO) << "Apply callback" << std::endl;
-                    core::Logger::log_(core::LogLevel::INFO) << "Write to " << path << std::endl;
-                    sys::Config::getInstance().updateConf(system);
-                    sys::Config::getInstance().writeToFile(path);
-                }),
-                "onPointPlot", std::function<void()>([&]() {
-                    core::Logger::log_(core::LogLevel::INFO) << "Point Plot requested." << std::endl;
-                    fc->pointInfo();
-                }),
-                "onBezierPlot", std::function<void()>([&]() {
-                    core::Logger::log_(core::LogLevel::INFO) << "Point Plot requested." << std::endl;
-                    fc->bezierInfo();
-                }),
-                "onQuit", std::function<void()>([&]() {
-                    core::Logger::log_(core::LogLevel::INFO) << "Quit requested." << std::endl;
-                    win_manager->closeWindow();
-                })
-        );
+            "onApply", std::function<void()>([&]() {
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Apply callback" << std::endl;
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Write to " << path << std::endl;
+                sys::Config::getInstance().updateConf(system);
+                sys::Config::getInstance().writeToFile(path);
+            }),
+            "onPointPlot", std::function<void()>([&]() {
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Point Plot requested." << std::endl;
+                FC->pointInfo();
+            }),
+            "onBezierPlot", std::function<void()>([&]() {
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Point Plot requested." << std::endl;
+                FC->bezierInfo();
+            }),
+            "onQuit", std::function<void()>([&]() {
+                core::Logger::log(core::LogLevel::INFO)
+                    << "Quit requested." << std::endl;
+                win_manager->closeWindow();
+            }));
 
-        while (!win_manager->shouldClose())
-        {
+        while (!win_manager->shouldClose()) {
             win_manager->pollEvents();
             win_manager->createOrResize();
-            gui->setRenderSize(win_manager->getWindowSize());
-            gui->render();
+            GUI->setRenderSize(win_manager->getWindowSize());
+            GUI->render();
         }
-    }
-    catch (const std::exception& e) {
-        core::Logger::log_(core::LogLevel::ERROR) << "Error" << e.what() << std::endl;
+    } catch (std::exception const& e) {
+        core::Logger::log(core::LogLevel::ERROR)
+            << "Error" << e.what() << std::endl;
         return EXIT_FAILURE;
     }
 

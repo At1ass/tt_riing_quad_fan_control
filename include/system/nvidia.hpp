@@ -5,25 +5,32 @@
 #include "system/gpu.hpp"
 
 namespace sys {
-    class Nvidia : public GPU {
-        public:
-            Nvidia();
-            ~Nvidia();
-            float getGPUTemp() override;
-            std::string getGPUName() override;
-            bool readGPUTemp(unsigned int& temp) override;
-        private:
-            void *library_;
-            bool Load();
-            void CleanUp();
-            decltype(&::nvmlInit_v2) nvmlInit_v2;
-            decltype(&::nvmlErrorString) nvmlErrorString;
-            decltype(&::nvmlDeviceGetHandleByIndex_v2) nvmlDeviceGetHandleByIndex_v2;
-            decltype(&::nvmlDeviceGetName) nvmlDeviceGetName;
-            decltype(&::nvmlDeviceGetTemperature) nvmlDeviceGetTemperature;
-            decltype(&::nvmlShutdown) nvmlShutdown;
-            nvmlDevice_t device{};
-    };
-}
 
-#endif // !__NVIDIA_HPP__
+class Nvidia : public GPU {
+   public:
+    Nvidia();
+    Nvidia(Nvidia const&) = default;
+    Nvidia(Nvidia&&) = delete;
+    Nvidia& operator=(Nvidia const&) = default;
+    Nvidia& operator=(Nvidia&&) = delete;
+    ~Nvidia() override;
+    unsigned int getGPUTemp() override;
+    std::string getGPUName() override;
+    bool readGPUTemp(unsigned int& temp) override;
+
+   private:
+    void* library_ = nullptr;
+    bool load();
+    void cleanUp();
+    decltype(&::nvmlInit_v2) nvmlInit_v2 = nullptr;
+    decltype(&::nvmlErrorString) nvmlErrorString = nullptr;
+    decltype(&::nvmlDeviceGetHandleByIndex_v2) nvmlDeviceGetHandleByIndex_v2 =
+        nullptr;
+    decltype(&::nvmlDeviceGetName) nvmlDeviceGetName = nullptr;
+    decltype(&::nvmlDeviceGetTemperature) nvmlDeviceGetTemperature = nullptr;
+    decltype(&::nvmlShutdown) nvmlShutdown = nullptr;
+    nvmlDevice_t device{};
+};
+
+}  // namespace sys
+#endif  // !__NVIDIA_HPP__
