@@ -1,4 +1,4 @@
-#include "system/nvidia.hpp"
+#include "system/gpus/nvidia.hpp"
 
 #include <dlfcn.h>
 

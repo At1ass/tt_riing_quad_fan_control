@@ -80,8 +80,13 @@ auto Logger::operator()(LogLevel level) -> Logger& {
 auto Logger::operator<<(std::ostream& (*manip)(std::ostream&)) -> Logger& {
     std::scoped_lock const LOCK(logMutex);
 
+    if (!shouldLog(currentLevel)) {
+        return *this;  // INFO игнорируется, если флаг выключен
+    }
+
     if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::endl)) {
         logBuffer.clear();
+        currentLevel = LogLevel::INFO;
         flush("\n", true);  // Завершаем строку
     }
     return *this;

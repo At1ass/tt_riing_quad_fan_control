@@ -27,7 +27,7 @@ void Monitoring::monitoringLoop() {
     using namespace std::chrono_literals;
     while (running.load()) {
         update();
-        std::this_thread::sleep_for(1s);
+        std::this_thread::sleep_for(interval);
     }
 }
 

@@ -22,10 +22,13 @@ constexpr float const DEFAULT_SPEED = 50.0F;
 // system/config.hpp) Ниже приведён упрощённый пример; в реальном проекте эти
 // классы могут быть более сложными. Мок для sys::HidWrapper с использованием
 // Google Mock
-class MockHidWrapper : public sys::IHidWrapper {
+class MockHidWrapper : public sys::DeviceController {
    public:
     MOCK_METHOD(void, sentToFan,
                 (std::size_t controller_idx, std::size_t fan_idx, uint value),
+                (override));
+    MOCK_METHOD(void, setRGB,
+                (std::size_t controller_idx, std::size_t fan_idx),
                 (override));
 };
 
@@ -77,7 +80,7 @@ class FanControllerTest : public ::testing::Test {
         mockHid = std::make_shared<MockHidWrapper>();
 
         // Создаем FanController (конструктор принимает system и hid-обёртку)
-        fanController = std::make_shared<core::FanController>(system, mockHid);
+        fanController = std::make_shared<core::FanController>(system, mockHid, false);
 
         // Создаем моковый медиатор
         mediator = std::make_shared<MockFanMediator>();
@@ -95,6 +98,7 @@ TEST_F(FanControllerTest, UpdateCPUfansCallsHidWrapperAndNotifiesMediator) {
     float temp = 70.0f;  // NOLINT
     // Ожидаем, что для вентилятора с мониторингом CPU будет вызван sentToFan с
     // индексами 0, (0+1) и скоростью 50.0
+    ON_CALL(*mockHid, setRGB(_,_)).WillByDefault(testing::Return());
     EXPECT_CALL(*mockHid, sentToFan(0, 1, 50)).Times(1);
 
     fanController->updateCPUfans(temp);

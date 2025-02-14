@@ -1,23 +1,23 @@
 [![CI/CD](https://github.com/At1ass/tt_riing_quad_fan_control/actions/workflows/ci.yml/badge.svg)](https://github.com/At1ass/tt_riing_quad_fan_control/actions/workflows/ci.yml)
 # TT Riing Quad Fan Control
 
-**TT Riing Quad Fan Control** is an experimental fan control application designed for Thermaltake Riing Quad controllers. The application monitors CPU and Nvidia GPU temperatures to adjust fan speeds dynamically, providing an adaptive cooling solution for your system.
+**TT Riing Quad Fan Control** is a fan control application designed for Thermaltake Riing Quad controllers. The application monitors CPU and Nvidia/AMD GPU temperatures to adjust fan speeds dynamically, providing an adaptive cooling solution for your system.
 
 ## Overview
 
 This application integrates several subsystems to deliver fan control functionality:
 - **GUI Interface & Tray Icon:** Built using GTK+ 3 and libayatana-appindicator3-0.1.
 - **Hardware Communication:** Utilizes hidapi to interact with Thermaltake Riing Quad controllers.
-- **GPU Monitoring:** Relies on nvidia-ml to retrieve Nvidia GPU temperature data.
+- **GPU Monitoring:** Relies on nvidia-ml to retrieve Nvidia GPU temperature data. Support AMD monitoring
 - **Rendering:** Employs Vulkan for graphical output.
 - **Modern C++ Design:** Leverages C++23 features along with design patterns such as Mediator, Observer, and Strategy to ensure a modular and maintainable architecture.
 
-> **Note:** This project is labeled as experimental ("Unstable & Nvidia only"). Use it at your own risk, and be aware that stability or compatibility may vary depending on your setup.
+> **Note:** This project in beta version. Use it at your own risk, and be aware that stability or compatibility may vary depending on your setup.
 
 ## Hardware Limitations
 
 - **Supported Controllers:** Only Thermaltake Riing Quad controllers are supported.
-- **GPU Requirement:** Nvidia GPUs only (due to reliance on nvidia-ml for GPU monitoring).
+- **GPU Requirement:** Nvidia GPUs (due to reliance on nvidia-ml for GPU monitoring), AMD GPU (sysfs)
 - **Operating System:** Designed for Linux systems that support GTK+ 3, Vulkan, and the other listed dependencies.
 
 ## Dependencies
@@ -27,7 +27,6 @@ To build and run this project, ensure that the following dependencies are instal
 - **GTK+ 3:** For creating the graphical user interface and managing the system tray.
 - **libayatana-appindicator3-0.1:** Provides tray icon support.
 - **hidapi:** For interfacing with Human Interface Devices (HID).
-- **nvidia-ml:** Used to monitor Nvidia GPU temperatures.
 - **Vulkan:** Required for rendering within the application.
 - **C++23:** The codebase leverages modern C++ features.
 - **cmake:** For configuring the build system.
@@ -56,6 +55,13 @@ Follow these steps to compile the project:
 
    ```bash
    make -j$(nproc)
+   ```
+5. If you want run tests:
+
+   ```bash
+   cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+   make -j$(nproc)
+   ./tests/runTests
    ```
 ## Installing the Application
 
@@ -108,4 +114,4 @@ Contributions, feature requests, and issue reports are welcome! If you would lik
 
 ## Disclaimer
 
-**TT Riing Quad Fan Control** is an experimental project. Its functionality is currently limited to Thermaltake Riing Quad controllers and Nvidia GPUs, and it may exhibit instability. Use the application at your own risk.
+**TT Riing Quad Fan Control** is an experimental project. Its functionality is currently limited to Thermaltake Riing Quad controllers and Nvidia/AMD GPUs, and it may exhibit instability. Use the application at your own risk.

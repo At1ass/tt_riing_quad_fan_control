@@ -1,4 +1,4 @@
-#include "system/dummyGPU.hpp"
+#include "system/gpus/dummyGPU.hpp"
 
 constexpr int const DEFAULT_SPEED = 50;
 

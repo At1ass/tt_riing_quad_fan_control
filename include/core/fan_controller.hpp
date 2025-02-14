@@ -2,6 +2,7 @@
 #define __FAN_CONTROLLER_HPP__
 
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "core/fan_mediator.hpp"
@@ -15,14 +16,22 @@ enum class DataUse { POINT, BEZIER };
 
 class FanController {
    public:
-    FanController(FanController const&) = default;
-    FanController(FanController&&) = default;
-    FanController& operator=(FanController const&) = default;
-    FanController& operator=(FanController&&) = default;
+    FanController(FanController const&) = delete;
+    FanController(FanController&&) = delete;
+    FanController& operator=(FanController const&) = delete;
+    FanController& operator=(FanController&&) = delete;
     FanController(std::shared_ptr<sys::System> sys,
-                  std::shared_ptr<sys::IHidWrapper> wr)
-        : system(sys), wrapper(wr) {}
-    ~FanController() = default;
+                  std::shared_ptr<sys::DeviceController> wr,
+                  bool run = true)
+        : system(sys), wrapper(wr), run(run) {
+            rgb_thread = std::thread(&FanController::rgbThreadLoop, this);
+        }
+    ~FanController() {
+        run.store(false);
+        if (rgb_thread.joinable()) {
+            rgb_thread.join();
+        }
+    }
 
     void setMediator(std::shared_ptr<Mediator> mediator);
     void updateCPUfans(float temp);
@@ -43,12 +52,16 @@ class FanController {
     }
 
    private:
+    void rgbThreadLoop();
     void updateFans(sys::MonitoringMode mode, float temp);
 
     DataUse dataUse = DataUse::POINT;
     std::shared_ptr<sys::System> system;
-    std::shared_ptr<sys::IHidWrapper> wrapper;
+    std::shared_ptr<sys::DeviceController> wrapper;
     std::shared_ptr<Mediator> mediator;
+    std::atomic<bool> run = true;
+    std::thread rgb_thread;
+    std::mutex hid_lock;
 };
 
 };  // namespace core

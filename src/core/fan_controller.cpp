@@ -3,7 +3,9 @@
 #include <math.h>
 
 #include <memory>
+#include <mutex>
 #include <ostream>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -13,6 +15,19 @@
 #include "system/config.hpp"
 
 namespace core {
+
+void FanController::rgbThreadLoop() {
+    while (run.load()) {
+        hid_lock.lock();
+        for ( size_t c = 0; c < 4; c++) {
+            for ( size_t f = 1; f <= 5; f++) {
+                wrapper->setRGB(c, f);
+            }
+        }
+        hid_lock.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+    }
+}
 
 void FanController::setMediator(std::shared_ptr<Mediator> mediator) {
     this->mediator = std::move(mediator);
@@ -91,6 +106,7 @@ void FanController::updateFanMonitoringMode(std::size_t controller_idx,
 void FanController::updateFans(sys::MonitoringMode mode, float temp) {
     Logger::log(LogLevel::INFO) << "Update fans: " << temp << std::endl;
     std::ostringstream log_str;
+    std::lock_guard<std::mutex> lock(hid_lock);
     for (auto&& c : system->getControllers()) {
         for (auto&& f : c.getFans()) {
             if (f.getMonitoringMode() == mode) {
@@ -103,6 +119,10 @@ void FanController::updateFans(sys::MonitoringMode mode, float temp) {
                 wrapper->sentToFan(c.getIdx(), f.getIdx() + 1,
                                    static_cast<uint>(s));
                 log_str << "Mode "
+                        << (mode == sys::MonitoringMode::MONITORING_GPU)
+                        << " Controller " << c.getIdx() << " Fan " << f.getIdx()
+                        << " set speed " << s << " on temp " << temp << '\n';
+                std::cout << "Mode "
                         << (mode == sys::MonitoringMode::MONITORING_GPU)
                         << " Controller " << c.getIdx() << " Fan " << f.getIdx()
                         << " set speed " << s << " on temp " << temp << '\n';

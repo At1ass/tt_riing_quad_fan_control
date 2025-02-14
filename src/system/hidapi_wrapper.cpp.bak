@@ -30,7 +30,7 @@ constexpr std::size_t const MAX_FAN = 5;
 std::string HidWrapper::Device::constructError(std::string const& msg,
                                                wchar_t const* reason) {
     std::string err_msg("Failed hid_open: ");
-    std::wstring error(hid_error(NULL));
+    std::wstring error(reason);
     err_msg += std::string(error.begin(), error.end());
     return err_msg;
 }

@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <filesystem>
 #include <functional>
 
@@ -18,17 +19,20 @@
 #include "system/CPUController.hpp"
 #include "system/config.hpp"
 #include "system/hidapi_wrapper.hpp"
+#include "system/controllers/ttRiingQuadController.hpp"
 #include "system/monitoring.hpp"
 #include "system/vulkan.hpp"
 
 constexpr int WIDTH = 1280;
 constexpr int HEIGHT = 720;
+constexpr int INTERVAL = 1100;
 
 auto main(int /*argc*/, char** /*argv*/) -> int {
     core::Logger::log.enableColorLogging(true);
 
     try {
-        std::shared_ptr<sys::HidWrapper> wrapper;
+        // std::shared_ptr<sys::HidWrapper> wrapper;
+        std::shared_ptr<sys::TTRiingQuadController> wrapper;
         std::string path;
 
         auto win_manager =
@@ -67,9 +71,11 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
 
         std::shared_ptr<sys::System> system;
         sys::Monitoring mon(std::make_unique<sys::CPUController>(),
-                            std::make_unique<sys::GPUController>());
+                            std::make_unique<sys::GPUController>(),
+                            std::chrono::seconds(2));
 
-        wrapper = std::make_shared<sys::HidWrapper>();
+        auto hidapi = std::make_unique<sys::HidApi>();
+        wrapper = std::make_shared<sys::TTRiingQuadController>(std::move(hidapi));
         sys::Config::getInstance().setControllerNum(wrapper->controllersNum());
 
         std::string const HOME_DIR(getenv("HOME"));

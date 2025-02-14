@@ -1,4 +1,4 @@
-#include "system/amd.hpp"
+#include "system/gpus/amd.hpp"
 
 #include <filesystem>
 #include <iterator>

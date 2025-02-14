@@ -4,9 +4,9 @@
 #include <fstream>
 
 #include "core/logger.hpp"
-#include "system/amd.hpp"
-#include "system/dummyGPU.hpp"
-#include "system/nvidia.hpp"
+#include "system/gpus/amd.hpp"
+#include "system/gpus/dummyGPU.hpp"
+#include "system/gpus/nvidia.hpp"
 
 namespace sys {
 
