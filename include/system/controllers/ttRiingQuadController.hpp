@@ -1,6 +1,7 @@
 #ifndef __TT_RIING_QUAD_CONTROLLER__
 #define __TT_RIING_QUAD_CONTROLLER__
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -18,11 +19,13 @@ constexpr std::size_t const TT_RIING_QUAD_PACKET_SIZE = 193;
 constexpr std::size_t const TT_RIING_QUAD_TIMEOUT = 250;
 constexpr std::size_t const TT_RIING_QUAD_TIMEOUT_GET = 700;
 
+constexpr float const COLOR_MULTIPLIER = 255.0F;
+
 constexpr uint8_t const SHIFT = 8;
 
 namespace sys {
 
-enum ProtocolType {
+enum ProtocolType : unsigned char {
     PROTOCOL_SET = 0x32,
     PROTOCOL_GET = 0x33,
     PROTOCOL_INIT = 0xFE,
@@ -62,10 +65,12 @@ class TTRiingQuadController : public DeviceController {
     }
     ~TTRiingQuadController() override {}
 
-    void sentToFan(std::size_t controller_idx, std::size_t fan_idx,
+    std::pair<std::size_t, std::size_t> sentToFan(std::size_t controller_idx, std::size_t fan_idx,
                    uint value) override;
 
-    void setRGB(std::size_t controller_idx, std::size_t fan_idx) override;
+    void setRGB(std::size_t controller_idx, std::size_t fan_idx, std::array<float, 3>& colors) override;
+
+    std::vector<std::vector<std::array<float, 3>>> makeColorBuffer() override;
 
     std::size_t controllersNum() { return devices.size(); }
 
@@ -75,6 +80,7 @@ class TTRiingQuadController : public DeviceController {
     void initControllers();
     void showControllersInfo();
     void sendInit(device& dev);
+    unsigned int convertChannel(float val);
 
     std::unique_ptr<HidApi> hidapi_wrapper;
     std::vector<device> devices;

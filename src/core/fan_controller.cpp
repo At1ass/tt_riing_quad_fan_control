@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <ostream>
+#include <ranges>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -12,6 +13,7 @@
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "core/mediator.hpp"
+#include "core/observer.hpp"
 #include "system/config.hpp"
 
 namespace core {
@@ -19,13 +21,13 @@ namespace core {
 void FanController::rgbThreadLoop() {
     while (run.load()) {
         hid_lock.lock();
-        for ( size_t c = 0; c < 4; c++) {
-            for ( size_t f = 1; f <= 5; f++) {
-                wrapper->setRGB(c, f);
+        for (auto&& [i, c] : std::ranges::views::enumerate(color_buffer)) {
+            for (auto&& [j, f] : std::ranges::views::enumerate(c)) {
+                wrapper->setRGB(i, j + 1, color_buffer[i][j]);
             }
         }
         hid_lock.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
     }
 }
 
@@ -64,13 +66,6 @@ void FanController::updateFanData(std::size_t controller_idx,
         .getFans()[fan_idx]
         .getData()
         .updateData(temperatures, speeds);
-
-    if (mediator) {
-        mediator->notify(
-            EventMessageType::UPDATE_FAN,
-            std::make_shared<DataMessage>(DataMessage{
-                controller_idx, fan_idx, FanData{temperatures, speeds}}));
-    }
 }
 
 void FanController::updateFanData(
@@ -80,11 +75,21 @@ void FanController::updateFanData(
         .getFans()[fan_idx]
         .getBData()
         .setData(bdata);
+}
 
-    if (mediator) {
-        mediator->notify(EventMessageType::UPDATE_FAN,
-                         std::make_shared<DataMessage>(
-                             DataMessage{controller_idx, fan_idx, bdata}));
+void FanController::updateFanColor(std::size_t controller_idx,
+                                   std::size_t fan_idx,
+                                   std::array<float, 3> const& color,
+                                   bool to_all) {
+    std::lock_guard<std::mutex> lock(hid_lock);
+    if (!to_all) {
+        color_buffer[controller_idx][fan_idx] = color;
+    } else {
+        for(auto &&c : color_buffer) {
+            std::for_each(c.begin(), c.end(), [&color](std::array<float, 3>& col){
+                col = color;
+            });
+        }
     }
 }
 
@@ -95,12 +100,6 @@ void FanController::updateFanMonitoringMode(std::size_t controller_idx,
         .getFans()[fan_idx]
         .setMonitoringMode(mode == 0 ? sys::MonitoringMode::MONITORING_CPU
                                      : sys::MonitoringMode::MONITORING_GPU);
-
-    if (mediator) {
-        mediator->notify(EventMessageType::UPDATE_MONITORING_MODE_FAN,
-                         std::make_shared<ModeMessage>(
-                             ModeMessage{controller_idx, fan_idx, mode}));
-    }
 }
 
 void FanController::updateFans(sys::MonitoringMode mode, float temp) {
@@ -116,16 +115,21 @@ void FanController::updateFans(sys::MonitoringMode mode, float temp) {
                 } else {
                     s = f.getBData().getSpeedForTemp(temp);
                 }
-                wrapper->sentToFan(c.getIdx(), f.getIdx() + 1,
-                                   static_cast<uint>(s));
+                auto stats = wrapper->sentToFan(c.getIdx(), f.getIdx() + 1,
+                                                static_cast<uint>(s));
                 log_str << "Mode "
                         << (mode == sys::MonitoringMode::MONITORING_GPU)
                         << " Controller " << c.getIdx() << " Fan " << f.getIdx()
                         << " set speed " << s << " on temp " << temp << '\n';
-                std::cout << "Mode "
-                        << (mode == sys::MonitoringMode::MONITORING_GPU)
-                        << " Controller " << c.getIdx() << " Fan " << f.getIdx()
-                        << " set speed " << s << " on temp " << temp << '\n';
+                log_str << "Speed: " << stats.first << "RPM: " << stats.second
+                          << std::endl;
+                if (mediator) {
+                    mediator->notify(
+                        EventMessageType::UPDATE_STATS,
+                        std::make_shared<StatsMessage>(
+                            StatsMessage{c.getIdx(), f.getIdx(), stats.first,
+                                         stats.second}));
+                }
             }
         }
     }

@@ -114,7 +114,7 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
         win_manager->hideWindow();
 
         std::shared_ptr<gui::GuiManager> const GUI =
-            std::make_shared<gui::GuiManager>(win_manager->getWindow());
+            std::make_shared<gui::GuiManager>(win_manager->getWindow(), system);
 
         std::shared_ptr<core::ObserverUiCPU> const UI_CPU_O =
             std::make_shared<core::ObserverUiCPU>(GUI);
@@ -153,7 +153,6 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
                                     new_system);
                                 *system = *new_system;
                                 path = std::move(selected_file);
-                                FC->reloadAllFans();
                             } catch (std::exception const& e) {
                                 core::Logger::log(core::LogLevel::ERROR)
                                     << "Failed reading config: " << e.what()

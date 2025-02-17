@@ -27,6 +27,14 @@ void FanMediator::dispatch(EventMessageType event_type,
             handleUpdateFan(std::static_pointer_cast<DataMessage>(msg));
             break;
 
+        case EventMessageType::UPDATE_STATS:
+            handleUpdateStats(std::static_pointer_cast<StatsMessage>(msg));
+            break;
+
+        case EventMessageType::UPDATE_COLOR:
+            handleUpdateColor(std::static_pointer_cast<ColorMessage>(msg));
+            break;
+
         case EventMessageType::UPDATE_MONITORING_MODE_UI:
             handleUpdateMonitoringModeUi(
                 std::static_pointer_cast<ModeMessage>(msg));
@@ -94,6 +102,32 @@ void FanMediator::handleUpdateGraph(std::shared_ptr<DataMessage> msg) {
                 }
             },
             msg->data);
+    }
+}
+
+void FanMediator::handleUpdateStats(std::shared_ptr<StatsMessage> msg) {
+    if (guiManager) {
+        guiManager->updateCurrentFanStats(msg->c_idx, msg->f_idx,
+                                          msg->cur_speed, msg->cur_rpm);
+        Logger::log(LogLevel::INFO) << "Stats updated from FanController for "
+                                       "controller"
+                                    << msg->c_idx << " fan " << msg->f_idx
+                                    << " | Speed: " << msg->cur_speed
+                                    << "RPM: " << msg->cur_rpm << std::endl;
+    }
+}
+
+void FanMediator::handleUpdateColor(std::shared_ptr<ColorMessage> msg) {
+    if (fanController) {
+        fanController->updateFanColor(
+            msg->c_idx, msg->f_idx,
+            std::array<float, 3>{msg->g, msg->r, msg->b}, msg->to_all);
+
+        Logger::log(LogLevel::INFO)
+            << "Color updated from FanController for "
+               "controller"
+            << msg->c_idx << " fan " << msg->f_idx << "Colors:" << msg->g << " "
+            << msg->r << " " << msg->b << std::endl;
     }
 }
 

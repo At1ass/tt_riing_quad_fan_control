@@ -60,16 +60,39 @@ class HidApi {
             }
         };
         std::unique_ptr<hid_device, std::function<void(hid_device*)>> dev(
-            hid_open(vendorId, pid, empty ? nullptr : serial_number.data()),
+            hid_open(vendorId, pid, empty ? NULL : serial_number.data()),
             deleter);
 
-        if (dev.get() == nullptr) {
+        if (dev.get() == NULL) {
             throw std::runtime_error(
                 constructError("Failed hid_open: ", hid_error(NULL)));
         }
 
         core::Logger::log(core::LogLevel::INFO)
             << "Maked device with product_id " << pid << std::endl;
+
+        return dev;
+    }
+
+    template <uint16_t vendorId>
+    std::unique_ptr<hid_device, std::function<void(hid_device*)>> makeDevice(
+        const char* path) {
+        auto deleter = [](hid_device* dev) {
+            if (dev != nullptr) {
+                hid_close(dev);
+            }
+        };
+        std::unique_ptr<hid_device, std::function<void(hid_device*)>> dev(
+            hid_open_path(path),
+            deleter);
+
+        if (dev.get() == NULL) {
+            throw std::runtime_error(
+                constructError("Failed hid_open_path: ", hid_error(NULL)));
+        }
+
+        core::Logger::log(core::LogLevel::INFO)
+            << "Maked device with path " << path << std::endl;
 
         return dev;
     }
@@ -105,7 +128,7 @@ class HidApi {
         T... data) {
         static_assert(packet_size >= 3 + sizeof...(data),
                       "Too much data arguments");
-        std::array<unsigned char, packet_size> usb_buf{};
+        std::array<unsigned char, packet_size> usb_buf{0};
         std::size_t offset = 0;
         // start_byte, f_prot, s_prot, static_cast<unsigned char>(data)...};
         usb_buf[offset++] = start_byte;
@@ -163,6 +186,16 @@ class HidApi {
         }
     }
 
+    template <uint16_t vendorId>
+    std::generator<const char*> getHidEnumerationGeneratorPaths() {
+        auto devs = getHidEnumeration<vendorId>();
+        hid_device_info* tmp = devs.get();
+
+        while (tmp != nullptr) {
+            co_yield tmp->path;
+            tmp = tmp->next;
+        }
+    }
     template <std::size_t NUM_CHANNELS>
     void printInfo(
         std::unique_ptr<hid_device, std::function<void(hid_device*)>>& dev) {

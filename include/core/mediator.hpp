@@ -7,6 +7,8 @@ enum class EventMessageType {
     INITIALIZE,    // Инициализация данных
     UPDATE_GRAPH,  // Обновление графиков (изменение через GUI)
     UPDATE_FAN,    // Обновление данных вентилятора (изменение в системе)
+    UPDATE_STATS,
+    UPDATE_COLOR,
     UPDATE_MONITORING_MODE_UI,
     UPDATE_MONITORING_MODE_FAN
 };

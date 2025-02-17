@@ -51,24 +51,29 @@ void GuiManager::updateGraphData(
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, FanData>) {
                 auto d = std::get<FanData>(data);
-                graphData[controller_idx * SHIFT + fan_idx] = {d.t, d.s};
             } else if constexpr (std::is_same_v<
                                      T, std::array<std::pair<double, double>,
                                                    4>>) {
                 auto d =
                     std::get<std::array<std::pair<double, double>, 4>>(data);
-                bezierData[controller_idx * SHIFT + fan_idx] = d;
             }
         },
         data);
 }
 
+void GuiManager::updateCurrentFanStats(std::size_t controller_idx,
+                                       std::size_t fan_idx, std::size_t speed,
+                                       std::size_t rpm) {
+    stats[controller_idx * SHIFT + fan_idx] = {speed, rpm};
+}
 void GuiManager::updateFanMonitoringMods(std::size_t controller_idx,
                                          std::size_t fan_idx, int const& mode) {
     fanMods[controller_idx * SHIFT + fan_idx] = mode;
 }
 
-GuiManager::GuiManager(std::shared_ptr<GLFWwindow> const& window) {
+GuiManager::GuiManager(std::shared_ptr<GLFWwindow> const& window,
+                       std::shared_ptr<sys::System> system)
+    : system(system) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -158,6 +163,10 @@ void GuiManager::renderTable() {
                         << "Button" << std::endl;
                     ImGui::OpenPopup("fctl", ImGuiPopupFlags_AnyPopupLevel);
                 }
+
+                ImGui::Text("Speed: %d", stats[i * SHIFT + j].first);  // NOLINT
+                ImGui::Text("Rpm: %d", stats[i * SHIFT + j].second);   // NOLINT
+
                 ImGui::SetNextWindowSize(
                     ImVec2(static_cast<float>(size.first / 2),
                            static_cast<float>(size.second / 2)));
@@ -183,6 +192,16 @@ void GuiManager::renderTable() {
                     ImGui::SameLine();
                     if (ImGui::Button("Close")) {
                         ImGui::CloseCurrentPopup();
+                    }
+                    if (ImGui::ColorEdit3("Fan color edit",
+                                          colors[i * SHIFT + j].data())) {
+                        if (mediator) {
+                            auto c = colors[i * SHIFT + j];
+                            mediator->notify(
+                                EventMessageType::UPDATE_COLOR,
+                                std::make_shared<ColorMessage>(ColorMessage{
+                                    i, j, c[0], c[1], c[2], false}));
+                        }
                     }
                     ImPlot::CreateContext();
                     printPlot(i, j);
@@ -216,6 +235,23 @@ void GuiManager::renderMonitoring() {
     ImGui::Text("%d °C", static_cast<int>(current_gpu_temp));  // NOLINT
 }
 
+void GuiManager::renderColorForAll() {
+    if (ImGui::ColorEdit3("All Fan color edit", color.data())) {
+        for (size_t i = 0; i < sys::Config::getInstance().getControllersNum();
+             i++) {
+            for (size_t j = 0; j < 5; j++) {
+                colors[i * SHIFT + j] = color;
+            }
+        }
+
+        if (mediator) {
+            mediator->notify(EventMessageType::UPDATE_COLOR,
+                             std::make_shared<ColorMessage>(ColorMessage{
+                                 0, 0, color[0], color[1], color[2], true}));
+        }
+    }
+}
+
 void GuiManager::render() {
     sys::Vulkan::newFrame();
     ImGui::NewFrame();
@@ -234,6 +270,7 @@ void GuiManager::render() {
         ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2, 2));
         if (ImGui::BeginTable("FanControlTable", 2, ImGuiTableFlags_Borders)) {
             ImGui::TableNextColumn();
+            renderColorForAll();
             renderTable();
             renderApplyButton();
             ImGui::TableNextColumn();
@@ -264,12 +301,12 @@ void GuiManager::cleanup() {
 }
 
 void GuiManager::printPlot(std::size_t i, std::size_t j) {
-    auto data = graphData[i * SHIFT + j];
+    auto data = system->getControllers()[i].getFans()[j].getData().getData();
+    auto bdata = system->getControllers()[i].getFans()[j].getBData().getData();
     auto temperatures = data.first;
     auto speeds = data.second;
-    auto bd = bezierData[i * SHIFT + j];
 
-    core::PlotDrawVisitor visitor(i, j, bd, temperatures, speeds, mediator);
+    core::PlotDrawVisitor visitor(i, j, bdata, temperatures, speeds, mediator);
 
     plot_stategy->accept(visitor);
 }

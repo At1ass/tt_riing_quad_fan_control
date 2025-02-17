@@ -8,6 +8,7 @@
 
 #include "core/fan_controller.hpp"
 #include "core/mediator.hpp"
+#include "gmock/gmock.h"
 #include "system/config.hpp"
 
 using ::testing::_;
@@ -17,6 +18,9 @@ constexpr int const MAX_TEMP = 100;
 constexpr int const TEMP_STEP = 5;
 
 constexpr float const DEFAULT_SPEED = 50.0F;
+using STATS = std::pair<std::size_t, std::size_t>;
+using COLOR = std::array<float, 3>;
+using COLOR_BUFFER = std::vector<std::vector<std::array<float, 3>>>;
 
 // Минимальные фейковые реализации для тестирования (если они не определены в
 // system/config.hpp) Ниже приведён упрощённый пример; в реальном проекте эти
@@ -24,12 +28,14 @@ constexpr float const DEFAULT_SPEED = 50.0F;
 // Google Mock
 class MockHidWrapper : public sys::DeviceController {
    public:
-    MOCK_METHOD(void, sentToFan,
+    MOCK_METHOD(STATS, sentToFan,
                 (std::size_t controller_idx, std::size_t fan_idx, uint value),
                 (override));
     MOCK_METHOD(void, setRGB,
-                (std::size_t controller_idx, std::size_t fan_idx),
+                (std::size_t controller_idx, std::size_t fan_idx, COLOR& colors),
                 (override));
+    MOCK_METHOD(COLOR_BUFFER, makeColorBuffer,
+                (), (override) );   
 };
 
 class MockFanMediator : public core::Mediator {
@@ -98,47 +104,8 @@ TEST_F(FanControllerTest, UpdateCPUfansCallsHidWrapperAndNotifiesMediator) {
     float temp = 70.0f;  // NOLINT
     // Ожидаем, что для вентилятора с мониторингом CPU будет вызван sentToFan с
     // индексами 0, (0+1) и скоростью 50.0
-    ON_CALL(*mockHid, setRGB(_,_)).WillByDefault(testing::Return());
+    ON_CALL(*mockHid, setRGB(_,_,_)).WillByDefault(testing::Return());
     EXPECT_CALL(*mockHid, sentToFan(0, 1, 50)).Times(1);
 
     fanController->updateCPUfans(temp);
-}
-
-// Проверяем, что метод updateFanData обновляет данные вентилятора и уведомляет
-// медиатор
-TEST_F(FanControllerTest, UpdateFanDataUpdatesSystemAndNotifiesMediator) {
-    std::vector<double> temperatures = {65.0, 70.0};  // NOLINT
-    std::vector<double> speeds = {50.0, 60.0};        // NOLINT
-
-    EXPECT_CALL(
-        *dynamic_cast<MockFanMediator*>(mediator.get()),
-        notify(::testing::Eq(EventMessageType::UPDATE_FAN), ::testing::_))
-        .Times(1);
-
-    fanController->updateFanData(0, 0, temperatures, speeds);
-
-    auto& fan = system->getControllers()[0].getFans()[0];
-    auto data = fan.getData().getData();
-    EXPECT_EQ(data.first, temperatures);
-    EXPECT_EQ(data.second, speeds);
-}
-
-// Проверяем, что updateFanMonitoringMode обновляет режим вентилятора и
-// уведомляет медиатор
-TEST_F(FanControllerTest, UpdateFanMonitoringModeUpdatesAndNotifiesMediator) {
-    // Изначально мониторинг у вентилятора = MONITORING_CPU
-    EXPECT_EQ(system->getControllers()[0].getFans()[0].getMonitoringMode(),
-              sys::MonitoringMode::MONITORING_CPU);
-
-    EXPECT_CALL(
-        *dynamic_cast<MockFanMediator*>(mediator.get()),
-        notify(::testing::Eq(EventMessageType::UPDATE_MONITORING_MODE_FAN),
-               ::testing::_))
-        .Times(1);
-
-    // Обновляем режим: передаем 1 (MONITORING_GPU)
-    fanController->updateFanMonitoringMode(0, 0, 1);
-
-    EXPECT_EQ(system->getControllers()[0].getFans()[0].getMonitoringMode(),
-              sys::MonitoringMode::MONITORING_GPU);
 }

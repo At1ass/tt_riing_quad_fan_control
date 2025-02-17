@@ -25,6 +25,18 @@ struct DataMessage : public Message {
     std::variant<FanData, std::array<std::pair<double, double>, 4>> data;
 };
 
+struct StatsMessage : public Message {
+    std::size_t cur_speed;
+    std::size_t cur_rpm;
+};
+
+struct ColorMessage : public Message {
+    float r;
+    float g;
+    float b;
+    bool to_all;
+};
+
 struct ModeMessage : public Message {
     int mode;
 };
@@ -48,6 +60,10 @@ class FanMediator : public Mediator {
     void initialize();
 
     void handleUpdateGraph(std::shared_ptr<DataMessage> msg);
+
+    void handleUpdateStats(std::shared_ptr<StatsMessage> msg);
+
+    void handleUpdateColor(std::shared_ptr<ColorMessage> msg);
 
     void handleUpdateFan(std::shared_ptr<DataMessage> msg);
 

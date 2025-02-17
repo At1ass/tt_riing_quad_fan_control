@@ -13,6 +13,7 @@
 #include "core/plotStrategy.hpp"
 #include "imgui.h"
 #include "implot.h"
+#include "system/config.hpp"
 #include "system/vulkan.hpp"
 
 namespace gui {
@@ -42,6 +43,9 @@ class GuiManager {
         std::size_t controller_idx, std::size_t fan_idx,
         std::variant<FanData, std::array<std::pair<double, double>, 4>> data);
 
+    void updateCurrentFanStats(std::size_t controller_idx, std::size_t fan_idx,
+                               std::size_t speed, std::size_t rpm);
+
     void updateFanMonitoringMods(std::size_t controller_idx,
                                  std::size_t fan_idx, int const& mode);
 
@@ -58,7 +62,8 @@ class GuiManager {
     GuiManager(GuiManager&&) = delete;
     GuiManager& operator=(GuiManager const&) = delete;
     GuiManager& operator=(GuiManager&&) = delete;
-    explicit GuiManager(std::shared_ptr<GLFWwindow> const& window);
+    explicit GuiManager(std::shared_ptr<GLFWwindow> const& window,
+                        std::shared_ptr<sys::System> system);
 
     void render();
 
@@ -69,6 +74,7 @@ class GuiManager {
     void renderPlotButtons();
     void renderTable();
     void renderApplyButton();
+    void renderColorForAll();
     void renderMonitoring();
 
     static void cleanup();
@@ -110,14 +116,13 @@ class GuiManager {
         fileDialogCallbacks;
     std::unordered_map<std::string, std::vector<GeneralCallback>>
         generalCallbacks;
+    std::unordered_map<std::size_t, std::pair<std::size_t, std::size_t>> stats;
     std::shared_ptr<core::Mediator> mediator;
-    std::unordered_map<std::size_t,
-                       std::pair<std::vector<double>, std::vector<double>>>
-        graphData;
-    std::unordered_map<std::size_t, std::array<std::pair<double, double>, 4>>
-        bezierData;
+    std::shared_ptr<sys::System> system;
     std::unordered_map<std::size_t, int> fanMods;
     std::unique_ptr<core::PlotStrategy> plot_stategy;
+    std::unordered_map<std::size_t, std::array<float, 3>> colors;
+    std::array<float, 3> color{0.5f, 0.5f, 0.5f};
 };
 }  // namespace gui
 #endif  // !__UI_HPP__

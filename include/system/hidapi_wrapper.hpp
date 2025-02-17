@@ -5,6 +5,8 @@
 #include <sys/types.h>
 
 #include <cstring>
+#include <utility>
+#include <vector>
 
 namespace sys {
 
@@ -15,9 +17,10 @@ class DeviceController {
     DeviceController& operator=(DeviceController const&) = default;
     DeviceController& operator=(DeviceController&&) = delete;
     virtual ~DeviceController() = default;
-    virtual void sentToFan(std::size_t controller_idx, std::size_t fan_idx,
+    virtual std::pair<std::size_t, std::size_t> sentToFan(std::size_t controller_idx, std::size_t fan_idx,
                            uint value) = 0;
-    virtual void setRGB(std::size_t controller_idx, std::size_t fan_idx) = 0;
+    virtual void setRGB(std::size_t controller_idx, std::size_t fan_idx, std::array<float, 3>& colors) = 0;
+    virtual std::vector<std::vector<std::array<float, 3>>> makeColorBuffer() = 0;
 
    protected:
     DeviceController() = default;
