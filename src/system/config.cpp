@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <cstddef>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -14,17 +15,31 @@ constexpr int const MAX_FAN = 5;
 
 namespace sys {
 
-void Controller::addFan(Fan const& fan) { fans.push_back(fan); }
-
-void System::addController(Controller const& controller) {
-    controllers.push_back(controller);
+auto Config::constructDefaultPath() -> std::string {
+    std::string const HOME_DIR(getenv("HOME"));
+    return HOME_DIR + "/.config/config2.toml";
 }
 
 auto Config::parseConfig(std::string_view path)
     -> std::shared_ptr<sys::System> {
+    auto system = std::make_shared<sys::System>();
+    std::string default_path = constructDefaultPath();
+
+    if (path.empty()) {
+        path = default_path;
+    }
+
+    if (!std::filesystem::exists(path)) {
+        core::Logger::log(core::LogLevel::WARNING)
+            << "Config file on path " << path
+            << " not found. Create default configuration" << std::endl;
+        std::cout << path << std::endl;
+        initDummyFans(system);
+        return system;
+    }
+
     conf = toml::parse_file(path);
     auto* saved = conf["saved"].as_array();
-    auto system = std::make_shared<sys::System>();
     if (saved != nullptr) {
         readed = true;
         size_t i = 0;

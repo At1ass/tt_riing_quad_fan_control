@@ -31,7 +31,7 @@ GTKTrayManager::GTKTrayManager() {
             indicator.get(), "dialog-information", "New messages");
 
         // Создаем меню для индикатора
-        GtkWidget* menu = gtk_menu_new();
+        menu = gtk_menu_new();
 
         // Добавляем пункт для управления окном
         GtkWidget* toggle_item = gtk_menu_item_new_with_label("Toggle Window");
@@ -39,8 +39,11 @@ GTKTrayManager::GTKTrayManager() {
             toggle_item, "activate",
             G_CALLBACK(+[](GtkWidget* /*widget*/, gpointer data) {
                 auto* self = static_cast<GTKTrayManager*>(data);
-                if (self->onToggleCallback) {
-                    self->onToggleCallback();
+                if (self->callbacks.contains("onToggle")) {
+                    for (auto&& callback :
+                         self->callbacks["onToggle"]) {
+                        callback();
+                    }
                 }
             }),
             this);
@@ -52,8 +55,11 @@ GTKTrayManager::GTKTrayManager() {
         g_signal_connect(quit_item, "activate",  // NOLINT
                          G_CALLBACK(+[](GtkWidget* /*widget*/, gpointer data) {
                              auto* self = static_cast<GTKTrayManager*>(data);
-                             if (self->onQuitCallback) {
-                                 self->onQuitCallback();
+                             if (self->callbacks.contains("onQuit")) {
+                                 for (auto&& callback :
+                                      self->callbacks["onQuit"]) {
+                                     callback();
+                                 }
                              }
                          }),
                          this);
@@ -72,14 +78,6 @@ GTKTrayManager::GTKTrayManager() {
 }
 
 GTKTrayManager::~GTKTrayManager() { stop(); }
-
-void GTKTrayManager::setOnToggleCallback(Callback cb) {
-    onToggleCallback = std::move(cb);
-}
-
-void GTKTrayManager::setOnQuitCallback(Callback cb) {
-    onQuitCallback = std::move(cb);
-}
 
 void GTKTrayManager::stop() {
     if (running) {
@@ -114,39 +112,39 @@ void GTKTrayManager::openFileChooserDialog(char const* title,
                                            FileDialogCallback callback) {
     g_idle_add(
         [](gpointer data) -> gboolean {
-            auto* dialogData =
-                static_cast<std::tuple<char const*, GtkFileChooserAction,
-                                       FileDialogCallback>*>(data);
+            std::unique_ptr<std::tuple<char const*, GtkFileChooserAction,
+                                       FileDialogCallback>>
+                dialog_data(
+                    static_cast<std::tuple<char const*, GtkFileChooserAction,
+                                           FileDialogCallback>*>(data));
+            std::unique_ptr<GtkWidget, std::function<void(GtkWidget*)>> dialog(
+                gtk_file_chooser_dialog_new(  // NOLINT
+                    std::get<0>(*dialog_data), nullptr,
+                    std::get<1>(*dialog_data), "_Cancel", GTK_RESPONSE_CANCEL,
+                    (std::get<1>(*dialog_data) == GTK_FILE_CHOOSER_ACTION_SAVE
+                         ? "_Save"
+                         : "_Open"),
+                    GTK_RESPONSE_ACCEPT, nullptr),
+                +[](GtkWidget* dialog) { gtk_widget_destroy(dialog); });
 
-            // Создаём диалог файлового выбора
-            GtkWidget* dialog = gtk_file_chooser_dialog_new(
-                std::get<0>(*dialogData), nullptr, std::get<1>(*dialogData),
-                "_Cancel", GTK_RESPONSE_CANCEL,
-                (std::get<1>(*dialogData) == GTK_FILE_CHOOSER_ACTION_SAVE
-                     ? "_Save"
-                     : "_Open"),
-                GTK_RESPONSE_ACCEPT, nullptr);
-
-            if (std::get<1>(*dialogData) == GTK_FILE_CHOOSER_ACTION_SAVE) {
+            if (std::get<1>(*dialog_data) == GTK_FILE_CHOOSER_ACTION_SAVE) {
                 gtk_file_chooser_set_do_overwrite_confirmation(
-                    GTK_FILE_CHOOSER(dialog), TRUE);
+                    GTK_FILE_CHOOSER(dialog.get()), TRUE);  // NOLINT
             }
 
-            if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-                char* filename =
-                    gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-                if (std::get<2>(*dialogData)) {
-                    std::get<2> (*dialogData)(filename);  // Вызываем колбэк
+            if (gtk_dialog_run(GTK_DIALOG(dialog.get())) ==  // NOLINT
+                GTK_RESPONSE_ACCEPT) {
+                std::string filename(gtk_file_chooser_get_filename(
+                    GTK_FILE_CHOOSER(dialog.get())));  // NOLINT
+                if (std::get<2>(*dialog_data)) {
+                    std::get<2> (*dialog_data)(filename);  // Вызываем колбэк
                 }
-                g_free(filename);
             }
-
-            gtk_widget_destroy(dialog);
-            delete dialogData;
 
             return FALSE;  // Удаляем из очереди g_idle_add
         },
-        new std::tuple<char const*, GtkFileChooserAction, FileDialogCallback>(
+        new std::tuple<char const*, GtkFileChooserAction,
+                       FileDialogCallback>(  // NOLINT
             title, action, std::move(callback)));
 
     core::Logger::log(core::LogLevel::INFO)

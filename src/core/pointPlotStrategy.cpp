@@ -6,6 +6,7 @@
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "implot.h"
+#include "system/controllerData.hpp"
 
 constexpr int const START_GRAPH = 0;
 constexpr int const END_GRAPH = 100;
@@ -16,7 +17,7 @@ namespace core {
 void PointPlotStrategy::plot(
     std::size_t i, std::size_t j,
     std::variant<FanData, std::array<std::pair<double, double>, 4>> data,
-    std::shared_ptr<core::Mediator> mediator) {
+    std::shared_ptr<sys::System> system) {
     auto d = std::get<FanData>(data);
     auto temperatures = d.t;
     auto speeds = d.s;
@@ -35,7 +36,7 @@ void PointPlotStrategy::plot(
                                   ImPlotDragToolFlags_DisableX)) {
                 temperatures[idx] = std::clamp(temperatures[idx], 0.0, 100.0);
                 speeds[idx] = std::clamp(speeds[idx], 0.0, 100.0);
-                if (mediator) {
+                if (system) {
                     std::ostringstream log_str;
                     log_str << "Temperatures: [ ";
                     for (auto&& t : temperatures) {
@@ -52,10 +53,10 @@ void PointPlotStrategy::plot(
                     // Логируем
                     Logger::log(LogLevel::INFO) << log_str.str() << std::endl;
 
-                    // Отправляем сообщение через медиатор
-                    mediator->notify(EventMessageType::UPDATE_GRAPH,
-                                     std::make_shared<DataMessage>(DataMessage{
-                                         i, j, FanData{temperatures, speeds}}));
+                    system->getControllers()[i]
+                        .getFans()[j]
+                        .getData()
+                        .updateData(temperatures, speeds);
                 }
             }
         }

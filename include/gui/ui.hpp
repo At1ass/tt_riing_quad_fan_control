@@ -39,15 +39,8 @@ class GuiManager {
     void updateCPUCurrentTemp(float temp) { current_cpu_temp = temp; }
     void updateGPUCurrentTemp(float temp) { current_gpu_temp = temp; }
 
-    void updateGraphData(
-        std::size_t controller_idx, std::size_t fan_idx,
-        std::variant<FanData, std::array<std::pair<double, double>, 4>> data);
-
     void updateCurrentFanStats(std::size_t controller_idx, std::size_t fan_idx,
                                std::size_t speed, std::size_t rpm);
-
-    void updateFanMonitoringMods(std::size_t controller_idx,
-                                 std::size_t fan_idx, int const& mode);
 
     template <typename... Args>
     void setCallbacks(Args&&... args) {

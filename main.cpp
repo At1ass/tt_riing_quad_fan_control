@@ -18,8 +18,8 @@
 #include "imgui.h"
 #include "system/CPUController.hpp"
 #include "system/config.hpp"
-#include "system/hidapi_wrapper.hpp"
 #include "system/controllers/ttRiingQuadController.hpp"
+#include "system/hidapi_wrapper.hpp"
 #include "system/monitoring.hpp"
 #include "system/vulkan.hpp"
 
@@ -31,7 +31,6 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
     core::Logger::log.enableColorLogging(true);
 
     try {
-        // std::shared_ptr<sys::HidWrapper> wrapper;
         std::shared_ptr<sys::TTRiingQuadController> wrapper;
         std::string path;
 
@@ -40,28 +39,28 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
 
         auto tray_manager = std::make_shared<gui::GTKTrayManager>();
 
-        tray_manager->setOnToggleCallback([&]() {
-            bool window_hidden = win_manager->windowHided();
+        tray_manager->setCallbacks(
+            "onToggle", std::function<void()>([&]() {
+                bool window_hidden = win_manager->windowHided();
 
-            if (window_hidden) {
+                if (window_hidden) {
+                    core::Logger::log(core::LogLevel::INFO)
+                        << "Restoring window from tray" << std::endl;
+                    win_manager->showWindow();
+                } else {
+                    core::Logger::log(core::LogLevel::INFO)
+                        << "Hiding window to tray" << std::endl;
+                    win_manager->hideWindow();
+                }
+
+                window_hidden = !window_hidden;
+            }),
+            "onQuit", std::function<void()>([&]() {
                 core::Logger::log(core::LogLevel::INFO)
-                    << "Restoring window from tray" << std::endl;
-                win_manager->showWindow();
-            } else {
-                core::Logger::log(core::LogLevel::INFO)
-                    << "Hiding window to tray" << std::endl;
-                win_manager->hideWindow();
-            }
-
-            window_hidden = !window_hidden;
-        });
-
-        tray_manager->setOnQuitCallback([&]() {
-            core::Logger::log(core::LogLevel::INFO)
-                << "Quit requested from tray." << std::endl;
-            win_manager->closeWindow();  // Закрываем GLFW
-            tray_manager->cleanup();
-        });
+                    << "Quit requested from tray." << std::endl;
+                win_manager->closeWindow();  // Закрываем GLFW
+                tray_manager->cleanup();
+            }));
 
         win_manager->setOnCloseCallback([&]() {
             core::Logger::log(core::LogLevel::INFO)
@@ -75,29 +74,21 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
                             std::chrono::seconds(2));
 
         auto hidapi = std::make_unique<sys::HidApi>();
-        wrapper = std::make_shared<sys::TTRiingQuadController>(std::move(hidapi));
+        wrapper =
+            std::make_shared<sys::TTRiingQuadController>(std::move(hidapi));
         sys::Config::getInstance().setControllerNum(wrapper->controllersNum());
 
-        std::string const HOME_DIR(getenv("HOME"));
-        path = HOME_DIR + "/.config/config2.toml";
-
-        if (std::filesystem::exists(path)) {
-            try {
-                system = sys::Config::getInstance().parseConfig(path);
-            } catch (std::exception e) {
-                core::Logger::log(core::LogLevel::ERROR)
-                    << "Failed read config: " << e.what() << std::endl;
-                std::terminate();
-            }
-            sys::Config::getInstance().printConfig(system);
-        } else {
-            system = std::make_shared<sys::System>();
-            sys::Config::getInstance().initDummyFans(system);
-            sys::Config::getInstance().printConfig(system);
-        }
+        system = sys::Config::getInstance().parseConfig(path);
+        sys::Config::getInstance().printConfig(system);
 
         std::shared_ptr<core::FanController> const FC =
             std::make_shared<core::FanController>(system, wrapper);
+
+        tray_manager->appendMenuItemsWithCallback(
+            "Point curve", "onPointCurve",
+            std::function<void()>([&FC]() { FC->pointInfo(); }), "Bezier curve",
+            "onBezierCurve",
+            std::function<void()>([&FC]() { FC->bezierInfo(); }));
 
         std::shared_ptr<core::ObserverCPU> const CPU_O =
             std::make_shared<core::ObserverCPU>(FC);
@@ -132,9 +123,6 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
 
         GUI->setMediator(mediator);
         FC->setMediator(mediator);
-
-        mediator->notify(EventMessageType::INITIALIZE,
-                         std::make_shared<Message>(Message{}));
 
         GUI->setCallbacks(
             "onOpenFile",

@@ -19,6 +19,7 @@ class Config {
     Config() {}
     Config(Config const&) = delete;
     void operator=(Config const&) = delete;
+    std::string constructDefaultPath();
 
    public:
     ~Config() = default;
@@ -30,7 +31,7 @@ class Config {
     }
 
     std::size_t getControllersNum() { return controllers_num; }
-    std::shared_ptr<sys::System> parseConfig(std::string_view path);
+    std::shared_ptr<sys::System> parseConfig(std::string_view path = "");
     void initDummyFans(std::shared_ptr<sys::System> const& system) const;
     static void printConfig(std::shared_ptr<sys::System> const& system);
     bool isReaded() { return readed; }

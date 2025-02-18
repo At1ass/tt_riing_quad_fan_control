@@ -43,40 +43,6 @@ void FanController::updateGPUfans(float temp) {
     updateFans(sys::MonitoringMode::MONITORING_GPU, temp);
 }
 
-void FanController::reloadAllFans() {
-    auto controllers = system->getControllers();
-    for (auto&& c : controllers) {
-        for (auto&& f : c.getFans()) {
-            auto fd = f.getData().getData();
-            updateFanData(c.getIdx(), f.getIdx(), fd.first, fd.second);
-            updateFanMonitoringMode(
-                c.getIdx(), f.getIdx(),
-                f.getMonitoringMode() == sys::MonitoringMode::MONITORING_CPU
-                    ? 0
-                    : 1);
-        }
-    }
-}
-
-void FanController::updateFanData(std::size_t controller_idx,
-                                  std::size_t fan_idx,
-                                  std::vector<double> const& temperatures,
-                                  std::vector<double> const& speeds) {
-    system->getControllers()[controller_idx]
-        .getFans()[fan_idx]
-        .getData()
-        .updateData(temperatures, speeds);
-}
-
-void FanController::updateFanData(
-    std::size_t controller_idx, std::size_t fan_idx,
-    std::array<std::pair<double, double>, 4> const& bdata) {
-    system->getControllers()[controller_idx]
-        .getFans()[fan_idx]
-        .getBData()
-        .setData(bdata);
-}
-
 void FanController::updateFanColor(std::size_t controller_idx,
                                    std::size_t fan_idx,
                                    std::array<float, 3> const& color,
@@ -91,15 +57,6 @@ void FanController::updateFanColor(std::size_t controller_idx,
             });
         }
     }
-}
-
-void FanController::updateFanMonitoringMode(std::size_t controller_idx,
-                                            std::size_t fan_idx,
-                                            int const& mode) {
-    system->getControllers()[controller_idx]
-        .getFans()[fan_idx]
-        .setMonitoringMode(mode == 0 ? sys::MonitoringMode::MONITORING_CPU
-                                     : sys::MonitoringMode::MONITORING_GPU);
 }
 
 void FanController::updateFans(sys::MonitoringMode mode, float temp) {

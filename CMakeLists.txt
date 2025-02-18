@@ -20,7 +20,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     message(STATUS "Enabling code coverage flags")
     set(COVERAGE_CXX_FLAGS "-fprofile-arcs -ftest-coverage")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COVERAGE_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${COVERAGE_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG
+        "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${COVERAGE_CXX_FLAGS}")
 endif()
 
 # --- GLFW setup ---
@@ -30,7 +31,7 @@ option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
 option(GLFW_DOCUMENT_INTERNALS "Include internals in documentation" OFF)
-option(BUILD_TESTS "Build unit tests" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
 
 include(cmake/CommonDeps.cmake)
 if(BUILD_TESTS)

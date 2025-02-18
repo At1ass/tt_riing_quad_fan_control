@@ -3,6 +3,7 @@
 
 #include "core/fan_mediator.hpp"
 #include "core/plotStrategy.hpp"
+#include "system/controllerData.hpp"
 
 namespace core {
 
@@ -11,7 +12,7 @@ class BezierCurvePlotStrategy : public PlotStrategy {
     void plot(
         std::size_t i, std::size_t j,
         std::variant<FanData, std::array<std::pair<double, double>, 4>> data,
-        std::shared_ptr<core::Mediator> mediator) override;
+        std::shared_ptr<sys::System> system) override;
 
     void accept(PlotVisitor& visitor) override { visitor.visit(*this); }
 };

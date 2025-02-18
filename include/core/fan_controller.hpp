@@ -39,16 +39,8 @@ class FanController {
     void setMediator(std::shared_ptr<Mediator> mediator);
     void updateCPUfans(float temp);
     void updateGPUfans(float temp);
-    void reloadAllFans();
-    void updateFanData(std::size_t controller_idx, std::size_t fan_idx,
-                       std::vector<double> const& temperatures,
-                       std::vector<double> const& speeds);
-    void updateFanData(std::size_t controller_idx, std::size_t fan_idx,
-                       std::array<std::pair<double, double>, 4> const& bdata);
     void updateFanColor(std::size_t controller_idx, std::size_t fan_idx,
                        std::array<float, 3> const& color, bool to_all);
-    void updateFanMonitoringMode(std::size_t controller_idx,
-                                 std::size_t fan_idx, int const& mode);
     void pointInfo() { dataUse = DataUse::POINT; }
     void bezierInfo() { dataUse = DataUse::BEZIER; }
 

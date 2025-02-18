@@ -18,6 +18,7 @@
 #include "imgui.h"
 #include "implot.h"
 #include "system/config.hpp"
+#include "system/controllerData.hpp"
 #include "system/vulkan.hpp"
 
 constexpr int const SHIFT = 10;
@@ -43,32 +44,10 @@ void GuiManager::setMediator(std::shared_ptr<core::Mediator> mediator) {
     this->mediator = std::move(mediator);
 }
 
-void GuiManager::updateGraphData(
-    std::size_t controller_idx, std::size_t fan_idx,
-    std::variant<FanData, std::array<std::pair<double, double>, 4>> data) {
-    std::visit(
-        [&](auto&& arg) {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, FanData>) {
-                auto d = std::get<FanData>(data);
-            } else if constexpr (std::is_same_v<
-                                     T, std::array<std::pair<double, double>,
-                                                   4>>) {
-                auto d =
-                    std::get<std::array<std::pair<double, double>, 4>>(data);
-            }
-        },
-        data);
-}
-
 void GuiManager::updateCurrentFanStats(std::size_t controller_idx,
                                        std::size_t fan_idx, std::size_t speed,
                                        std::size_t rpm) {
     stats[controller_idx * SHIFT + fan_idx] = {speed, rpm};
-}
-void GuiManager::updateFanMonitoringMods(std::size_t controller_idx,
-                                         std::size_t fan_idx, int const& mode) {
-    fanMods[controller_idx * SHIFT + fan_idx] = mode;
 }
 
 GuiManager::GuiManager(std::shared_ptr<GLFWwindow> const& window,
@@ -171,7 +150,14 @@ void GuiManager::renderTable() {
                     ImVec2(static_cast<float>(size.first / 2),
                            static_cast<float>(size.second / 2)));
                 if (ImGui::BeginPopupModal("fctl")) {
-                    auto current_item = items_span[fanMods[i * SHIFT + j]];
+                    auto monitoring_mode =
+                        system->getControllers()[i]
+                                    .getFans()[j]
+                                    .getMonitoringMode() ==
+                                sys::MonitoringMode::MONITORING_CPU
+                            ? 0
+                            : 1;
+                    auto current_item = items_span[monitoring_mode];
                     if (ImGui::BeginCombo("custom combo", current_item.data(),
                                           ImGuiComboFlags_NoArrowButton)) {
                         for (int n = 0; n < items.size(); n++) {
@@ -179,11 +165,13 @@ void GuiManager::renderTable() {
                             if (ImGui::Selectable(items_span[n].data(),
                                                   is_selected)) {
                                 current_item = items_span[n];
-                                fanMods[i * SHIFT + j] = n;
-                                mediator->notify(
-                                    EventMessageType::UPDATE_MONITORING_MODE_UI,
-                                    std::make_shared<ModeMessage>(
-                                        ModeMessage{i, j, n}));
+                                system->getControllers()[i]
+                                    .getFans()[j]
+                                    .setMonitoringMode(
+                                        n == 0 ? sys::MonitoringMode::
+                                                     MONITORING_CPU
+                                               : sys::MonitoringMode::
+                                                     MONITORING_GPU);
                             }
                             if (is_selected) ImGui::SetItemDefaultFocus();
                         }
@@ -306,7 +294,7 @@ void GuiManager::printPlot(std::size_t i, std::size_t j) {
     auto temperatures = data.first;
     auto speeds = data.second;
 
-    core::PlotDrawVisitor visitor(i, j, bdata, temperatures, speeds, mediator);
+    core::PlotDrawVisitor visitor(i, j, bdata, temperatures, speeds, system);
 
     plot_stategy->accept(visitor);
 }

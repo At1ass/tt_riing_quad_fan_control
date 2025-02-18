@@ -57,19 +57,9 @@ class FanMediator : public Mediator {
    private:
     void dispatch(EventMessageType event_type, std::shared_ptr<Message> msg);
 
-    void initialize();
-
-    void handleUpdateGraph(std::shared_ptr<DataMessage> msg);
-
     void handleUpdateStats(std::shared_ptr<StatsMessage> msg);
 
     void handleUpdateColor(std::shared_ptr<ColorMessage> msg);
-
-    void handleUpdateFan(std::shared_ptr<DataMessage> msg);
-
-    void handleUpdateMonitoringModeUi(std::shared_ptr<ModeMessage> msg);
-
-    void handleUpdateMonitoringModeFan(std::shared_ptr<ModeMessage> msg);
 
     std::shared_ptr<gui::GuiManager> guiManager;
     std::shared_ptr<core::FanController> fanController;

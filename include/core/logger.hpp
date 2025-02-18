@@ -6,6 +6,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace core {
 
@@ -29,7 +30,9 @@ class Logger {
     Logger& operator()(LogLevel level);  // Установка уровня лога
     template <typename T>
     Logger& operator<<(T const& value) {
-        if constexpr (std::is_arithmetic_v<T> ||
+        if constexpr (std::is_same_v<T, std::string_view>) {
+            logBuffer.write(value.data(), static_cast<std::streamsize>(value.size()));
+        } else if constexpr (std::is_arithmetic_v<T> ||
                       std::is_convertible_v<T, std::string> ||
                       std::is_invocable_v<decltype(std::declval<std::ostream&>()
                                                    << std::declval<T>()),

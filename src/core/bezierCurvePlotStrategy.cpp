@@ -5,6 +5,7 @@
 
 #include "core/logger.hpp"
 #include "implot.h"
+#include "system/controllerData.hpp"
 
 static ImPlotPoint bezierGenerator(int idx, void* user_data) {
     double t = static_cast<double>(idx) / 100.0;  // t ∈ [0, 1]
@@ -35,7 +36,7 @@ namespace core {
 void BezierCurvePlotStrategy::plot(
     std::size_t i, std::size_t j,
     std::variant<FanData, std::array<std::pair<double, double>, 4>> data,
-    std::shared_ptr<core::Mediator> mediator) {
+    std::shared_ptr<sys::System> system) {
     auto cp = std::get<std::array<std::pair<double, double>, 4>>(data);
     if (ImPlot::BeginPlot("Fan Control (Bezier Curve) ", ImVec2(-1, -1),
                           ImPlotFlags_NoLegend | ImPlotFlags_NoMenus)) {
@@ -62,7 +63,7 @@ void BezierCurvePlotStrategy::plot(
                     std::clamp(cp[idx].first, 0.0, 100.0);  // NOLINT
                 cp[idx].second =
                     std::clamp(cp[idx].second, 0.0, 100.0);  // NOLINT
-                if (mediator) {
+                if (system) {
                     std::ostringstream log_str;
 
                     log_str << "Control points: [ ";
@@ -74,10 +75,8 @@ void BezierCurvePlotStrategy::plot(
                     // Логируем
                     Logger::log(LogLevel::INFO) << log_str.str() << std::endl;
 
-                    // Отправляем сообщение через медиатор
-                    mediator->notify(
-                        EventMessageType::UPDATE_GRAPH,
-                        std::make_shared<DataMessage>(DataMessage{i, j, cp}));
+                    system->getControllers()[i].getFans()[j].getBData().setData(
+                        cp);
                 }
             }
         }

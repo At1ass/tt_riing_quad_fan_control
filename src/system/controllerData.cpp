@@ -141,4 +141,10 @@ void Fan::setMonitoringMode(MonitoringMode const MODE) {
     monitoring_mode = MODE;
 }
 
+void Controller::addFan(Fan const& fan) { fans.push_back(fan); }
+
+void System::addController(Controller const& controller) {
+    controllers.push_back(controller);
+}
+
 }  // namespace sys
