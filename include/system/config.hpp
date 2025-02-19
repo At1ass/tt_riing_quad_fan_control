@@ -14,7 +14,6 @@ namespace sys {
 
 class Config {
    private:
-    SystemBuilder builder;
     toml::parse_result conf;
     std::size_t controllers_num = 0;
     Config() {}

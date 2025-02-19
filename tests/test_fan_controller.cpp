@@ -13,11 +13,6 @@
 
 using ::testing::_;
 
-constexpr int const MIN_TEMP = 0;
-constexpr int const MAX_TEMP = 100;
-constexpr int const TEMP_STEP = 5;
-
-constexpr float const DEFAULT_SPEED = 50.0F;
 using STATS = std::pair<std::size_t, std::size_t>;
 using COLOR = std::array<float, 3>;
 using COLOR_BUFFER = std::vector<std::vector<std::array<float, 3>>>;
@@ -65,7 +60,7 @@ class FanControllerTest : public ::testing::Test {
 
         fan.setIdx(0);
         fan.setMonitoringMode(sys::MonitoringMode::MONITORING_CPU);
-        for (size_t i = MIN_TEMP; i <= MAX_TEMP; i += TEMP_STEP) {
+        for (size_t i = MIN_TEMP; i <= MAX_TEMP; i += STEP_TEMP) {
             data.addSpeed(DEFAULT_SPEED);
             data.addTemp(static_cast<float>(i));
         }

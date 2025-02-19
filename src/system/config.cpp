@@ -17,6 +17,7 @@
 namespace sys {
 std::shared_ptr<System> Config::parseConfig(std::string_view path) {
     std::shared_ptr<System> system;
+    SystemBuilder builder;
     try {
         system = builder.buildFromFile(path, controllers_num);
     } catch (std::exception const& e) {

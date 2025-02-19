@@ -100,7 +100,7 @@ class SystemBuilder {
         dummy_temps.resize(DEFAULT_POINT_NUM);
         std::generate(
             dummy_temps.begin(), dummy_temps.end(),
-            [n = START_TEMP, s = STEP_TEMP]() mutable { return n += s; });
+            [n = START_TEMP - STEP_TEMP, s = STEP_TEMP]() mutable { return n += s; });
         return dummy_temps;
     }
 
