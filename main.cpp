@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <functional>
 
+#include "core/bezierCurvePlotStrategy.hpp"
 #include "core/fan_controller.hpp"
 #include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
@@ -31,6 +32,8 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
     core::Logger::log.enableColorLogging(true);
 
     try {
+        // For other controllers support, need create detect controllers class
+        // and work with it
         std::shared_ptr<sys::TTRiingQuadController> wrapper;
         std::string path;
 
@@ -84,12 +87,6 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
         std::shared_ptr<core::FanController> const FC =
             std::make_shared<core::FanController>(system, wrapper);
 
-        tray_manager->appendMenuItemsWithCallback(
-            "Point curve", "onPointCurve",
-            std::function<void()>([&FC]() { FC->pointInfo(); }), "Bezier curve",
-            "onBezierCurve",
-            std::function<void()>([&FC]() { FC->bezierInfo(); }));
-
         std::shared_ptr<core::ObserverCPU> const CPU_O =
             std::make_shared<core::ObserverCPU>(FC);
         std::shared_ptr<core::ObserverGPU> const GPU_O =
@@ -123,6 +120,16 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
 
         GUI->setMediator(mediator);
         FC->setMediator(mediator);
+
+        tray_manager->appendMenuItemsWithCallback(
+            "Point curve", "onPointCurve", std::function<void()>([&FC, &GUI]() {
+                FC->pointInfo();
+                GUI->setStrategy(std::make_unique<core::PointPlotStrategy>());
+            }),
+            "Bezier curve", "onBezierCurve", std::function<void()>([&FC, &GUI]() {
+                FC->bezierInfo();
+                GUI->setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
+            }));
 
         GUI->setCallbacks(
             "onOpenFile",
