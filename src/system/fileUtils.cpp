@@ -1,4 +1,4 @@
-#include "system/file_utils.hpp"
+#include "system/fileUtils.hpp"
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -59,18 +59,13 @@ auto ls(std::filesystem::path const& root, std::string_view prefix,
             break;
         }
 
-        // Получаем имя файла/каталога
         std::string name = entry.path().filename().string();
 
-        // Пропускаем если задан префикс и имя не начинается с него, или если
-        // имя
-        // "." или ".."
         if ((!prefix.empty() && !name.starts_with(prefix)) || name == "." ||
             name == "..") {
             continue;
         }
 
-        // Если элемент — символьная ссылка, получаем статус целевого объекта
         if (entry.is_symlink(ec)) {
             auto target_status = fs::status(entry, ec);
             if (ec) continue;

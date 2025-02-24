@@ -4,29 +4,61 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <memory>
 
-#include "core/bezierCurvePlotStrategy.hpp"
-#include "core/fan_controller.hpp"
-#include "core/fan_mediator.hpp"
+#include "core/commands/compositeCommand.hpp"
+#include "core/commands/rainbowColorCommand.hpp"
+#include "core/commands/rainbowColorFadeCommand.hpp"
+#include "core/commands/staticColorCommand.hpp"
+#include "core/effectsEngine.hpp"
+#include "core/fanController.hpp"
 #include "core/logger.hpp"
 #include "core/mediator.hpp"
+#include "core/mediators/fanMediator.hpp"
 #include "core/observer.hpp"
-#include "core/pointPlotStrategy.hpp"
-#include "core/uiObserver.hpp"
-#include "gui/gtk_tray_manager.hpp"
+#include "core/observers/ui/uiObserver.hpp"
+#include "core/strategies/bezierCurvePlotStrategy.hpp"
+#include "core/strategies/pointPlotStrategy.hpp"
+#include "gui/gtkTrayManager.hpp"
 #include "gui/ui.hpp"
-#include "gui/window_manager.hpp"
+#include "gui/windowManager.hpp"
 #include "imgui.h"
+#include "include/core/commands/staticColorCommand.hpp"
 #include "system/CPUController.hpp"
 #include "system/config.hpp"
 #include "system/controllers/ttRiingQuadController.hpp"
-#include "system/hidapi_wrapper.hpp"
+#include "system/deviceController.hpp"
 #include "system/monitoring.hpp"
 #include "system/vulkan.hpp"
 
 constexpr int WIDTH = 1280;
 constexpr int HEIGHT = 720;
 constexpr int INTERVAL = 1100;
+
+auto makeEngine() -> std::unique_ptr<core::EffectsEngine> {
+    auto engine = std::make_unique<core::EffectsEngine>();
+
+    engine->addEffect(
+        std::make_unique<core::RainbowColorCommand>(std::chrono::seconds(2)));
+
+    engine->addEffect(std::make_unique<core::RainbowColorFadeCommand>(
+        std::chrono::seconds(2)));
+
+    engine->addEffect(std::make_unique<core::StaticColorCommand>(
+        0, 0, 0, std::chrono::steady_clock::duration::max()));
+
+    auto composite_effect = std::make_unique<core::CompositeCommand>();
+
+    composite_effect->addCommand(std::make_unique<core::StaticColorCommand>(
+        255, 0, 0, std::chrono::seconds(10)));
+    composite_effect->addCommand(std::make_unique<core::StaticColorCommand>(
+        0, 255, 0, std::chrono::seconds(10)));
+
+    engine->addEffect(std::move(composite_effect));
+    engine->setActiveEffect(0);
+
+    return engine;
+}
 
 auto main(int /*argc*/, char** /*argv*/) -> int {
     core::Logger::log.enableColorLogging(true);
@@ -61,7 +93,7 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
             "onQuit", std::function<void()>([&]() {
                 core::Logger::log(core::LogLevel::INFO)
                     << "Quit requested from tray." << std::endl;
-                win_manager->closeWindow();  // Закрываем GLFW
+                win_manager->closeWindow();
                 tray_manager->cleanup();
             }));
 
@@ -85,7 +117,8 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
         sys::Config::getInstance().printConfig(system);
 
         std::shared_ptr<core::FanController> const FC =
-            std::make_shared<core::FanController>(system, wrapper);
+            std::make_shared<core::FanController>(system, wrapper,
+                                                  std::move(makeEngine()));
 
         std::shared_ptr<core::ObserverCPU> const CPU_O =
             std::make_shared<core::ObserverCPU>(FC);
@@ -126,9 +159,11 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
                 FC->pointInfo();
                 GUI->setStrategy(std::make_unique<core::PointPlotStrategy>());
             }),
-            "Bezier curve", "onBezierCurve", std::function<void()>([&FC, &GUI]() {
+            "Bezier curve", "onBezierCurve",
+            std::function<void()>([&FC, &GUI]() {
                 FC->bezierInfo();
-                GUI->setStrategy(std::make_unique<core::BezierCurvePlotStrategy>());
+                GUI->setStrategy(
+                    std::make_unique<core::BezierCurvePlotStrategy>());
             }));
 
         GUI->setCallbacks(
@@ -174,9 +209,9 @@ auto main(int /*argc*/, char** /*argv*/) -> int {
                 core::Logger::log(core::LogLevel::INFO)
                     << "Apply callback" << std::endl;
                 core::Logger::log(core::LogLevel::INFO)
-                    << "Write to " << path << std::endl;
+                    << "Write to opened config" << std::endl;
                 sys::Config::getInstance().updateConf(system);
-                sys::Config::getInstance().writeToFile(path);
+                sys::Config::getInstance().writeToFile();
             }),
             "onPointPlot", std::function<void()>([&]() {
                 core::Logger::log(core::LogLevel::INFO)

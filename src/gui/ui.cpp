@@ -4,17 +4,16 @@
 #include <cstdint>
 #include <memory>
 #include <span>
-#include <sstream>
 #include <utility>
 #include <vector>
 
 #include "GLFW/glfw3.h"
-#include "core/bezierCurvePlotStrategy.hpp"
-#include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
 #include "core/mediator.hpp"
-#include "core/plotDrawVisitor.hpp"
-#include "core/pointPlotStrategy.hpp"
+#include "core/mediators/fanMediator.hpp"
+#include "core/strategies/bezierCurvePlotStrategy.hpp"
+#include "core/strategies/pointPlotStrategy.hpp"
+#include "core/visitors/plot/plotDrawVisitor.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "system/config.hpp"
@@ -58,11 +57,10 @@ GuiManager::GuiManager(std::shared_ptr<GLFWwindow> const& window,
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |=
-        ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+        ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |=
-        ImGuiConfigFlags_NavEnableGamepad;            // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiWindowFlags_NoBackground;  // Enable Multi-Viewport /
-                                                      // Platform Windows
+        ImGuiConfigFlags_NavEnableGamepad;
+    io.ConfigFlags |= ImGuiWindowFlags_NoBackground;
     io.ConfigFlags |= ImGuiWindowFlags_NoResize;
     io.FontGlobalScale = SCALE;
 
@@ -236,6 +234,37 @@ void GuiManager::renderColorForAll() {
             mediator->notify(EventMessageType::UPDATE_COLOR,
                              std::make_shared<ColorMessage>(ColorMessage{
                                  0, 0, color[0], color[1], color[2], true}));
+        }
+    }
+
+    char const* items[] = {"Rainbow", "Rainbow Fade", "Static", "Custom"};
+    static char const* current = items[0];
+    static int e = 0;
+    static int d = 2;
+    if (ImGui::BeginCombo("Effect", current)) {
+        for (int n = 0; n < 4; n++) {
+            bool is_selected = (current == items[n]);
+            if (ImGui::Selectable(items[n], is_selected)) {
+                current = items[n];
+                e = n;
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SliderInt("Duration", &d, 1, 20);
+
+    ImGui::ColorEdit3("Effect Fan color edit", color.data());
+
+    if (ImGui::Button("Apply effect")) {
+        if (mediator) {
+            mediator->notify(EventMessageType::UPDATE_EFFECT,
+                             std::make_shared<ColorMessage>(ColorMessage{
+                                 static_cast<size_t>(e), static_cast<size_t>(d),
+                                 color[0], color[1], color[2]}));
         }
     }
 }

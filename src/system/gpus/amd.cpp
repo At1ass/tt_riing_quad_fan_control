@@ -1,7 +1,6 @@
 #include "system/gpus/amd.hpp"
 
 #include <filesystem>
-#include <iterator>
 #include <stdexcept>
 
 #include "core/logger.hpp"

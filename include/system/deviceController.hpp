@@ -4,6 +4,7 @@
 #include <hidapi.h>
 #include <sys/types.h>
 
+#include <cstdint>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -19,8 +20,8 @@ class DeviceController {
     virtual ~DeviceController() = default;
     virtual std::pair<std::size_t, std::size_t> sentToFan(std::size_t controller_idx, std::size_t fan_idx,
                            uint value) = 0;
-    virtual void setRGB(std::size_t controller_idx, std::size_t fan_idx, std::array<float, 3>& colors) = 0;
-    virtual std::vector<std::vector<std::array<float, 3>>> makeColorBuffer() = 0;
+    virtual void setRGB(std::size_t controller_idx, std::size_t fan_idx, std::array<uint8_t, 3>& colors) = 0;
+    virtual std::vector<std::vector<std::array<uint8_t, 3>>> makeColorBuffer() = 0;
 
    protected:
     DeviceController() = default;

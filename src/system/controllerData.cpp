@@ -101,7 +101,7 @@ double FanBezierData::getSpeedForTemp(float const& temp) {
         pair p = computeBezierAtT(t_mid);
 
         if (std::abs(p.first - temp) < EPSILON) {
-            return p.second;  // Нашли нужное значение y
+            return p.second;
         }
 
         if (p.first < temp) {
@@ -112,7 +112,7 @@ double FanBezierData::getSpeedForTemp(float const& temp) {
     }
 
     return computeBezierAtT(t_mid)
-        .second;  // Возвращаем ближайшее найденное значение
+        .second;
 }
 
 std::pair<double, double> FanBezierData::computeBezierAtT(double t) {

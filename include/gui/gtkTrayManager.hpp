@@ -2,14 +2,12 @@
 #define __GTK_TRAY_MANAGER_HPP__
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <type_traits>
 #include <utility>
 
-#include "core/logger.hpp"
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "libayatana-appindicator/app-indicator.h"
@@ -56,7 +54,7 @@ class GTKTrayManager {
                           std::forward<Callbacks>(callback));
         if constexpr (sizeof...(rest) > 0) {
             setCallbacksImpl(
-                std::forward<Rest>(rest)...);  // Рекурсивная обработка
+                std::forward<Rest>(rest)...);
         }
     }
 
@@ -109,14 +107,12 @@ class GTKTrayManager {
             },
             this->data_for_calbacks[name_item].get());
 
-        std::cout << "-------------------" << this->data_for_calbacks.size() << std::endl;
-
         setSingleCallback(std::forward<NameCallbacks>(name_callbacks),
                           std::forward<Callbacks>(callbacks));
 
         if constexpr (sizeof...(rest) > 0) {
             appendMenuItemsWithCallbackImpl(
-                std::forward<Rest>(rest)...);  // Рекурсивная обработка
+                std::forward<Rest>(rest)...);
         }
     }
 

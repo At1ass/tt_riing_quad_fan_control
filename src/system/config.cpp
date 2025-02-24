@@ -2,13 +2,10 @@
 
 #include <math.h>
 
-#include <cstddef>
 #include <exception>
-#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 
 #include "core/logger.hpp"
 #include "system/systemBuilder.hpp"
@@ -87,6 +84,19 @@ void Config::updateConf(std::shared_ptr<sys::System> const& system) {
 
 void Config::writeToFile(std::string_view path) {
     std::fstream out;
+    char const* home = nullptr;
+    std::string default_path;
+    if (path.empty()) {
+        home = std::getenv("HOME");
+        if (!home) {
+            core::Logger::log(core::LogLevel::WARNING)
+                << "HOME enviroment variable not set" << std::endl;
+            return;
+        } else {
+            default_path = std::string(home) + "/.config/config2.toml";
+            path = default_path;
+        }
+    }
     out.open(path.data(), std::ios::out | std::ios::trunc);
     out << toml::toml_formatter(conf);
     out.close();

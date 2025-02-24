@@ -2,7 +2,7 @@
 
 #include <array>
 #include <cassert>
-#include <iterator>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 
@@ -43,7 +43,8 @@ std::pair<std::size_t, std::size_t> TTRiingQuadController::sentToFan(
     }
 
     std::size_t speed = ret_get[PROTOCOL_SPEED];
-    std::size_t rpm = (ret_get[PROTOCOL_RPM_H] << SHIFT) + ret_get[PROTOCOL_RPM_L];
+    std::size_t rpm =
+        (ret_get[PROTOCOL_RPM_H] << SHIFT) + ret_get[PROTOCOL_RPM_L];
     core::Logger::log(core::LogLevel::INFO)
         << "Controller: " << controller_idx << " Fan: " << fan_idx << std::endl;
     core::Logger::log(core::LogLevel::INFO)
@@ -58,7 +59,7 @@ std::pair<std::size_t, std::size_t> TTRiingQuadController::sentToFan(
 
 void TTRiingQuadController::setRGB(std::size_t controller_idx,
                                    std::size_t fan_idx,
-                                   std::array<float, 3>& colors) {
+                                   std::array<uint8_t, 3>& colors) {
     constexpr unsigned int NUM_COLORS = 54;
 
     std::array<unsigned char, 3 * NUM_COLORS> color_data{};
@@ -66,13 +67,13 @@ void TTRiingQuadController::setRGB(std::size_t controller_idx,
 
     for (unsigned int color = 0; color < NUM_COLORS; color++) {
         unsigned int color_idx = color * 3;
-        colors_span[color_idx + 0] = convertChannel(colors[0]);
-        colors_span[color_idx + 1] = convertChannel(colors[1]);
-        colors_span[color_idx + 2] = convertChannel(colors[2]);
+        colors_span[color_idx + 0] = colors[0];
+        colors_span[color_idx + 1] = colors[1];
+        colors_span[color_idx + 2] = colors[2];
     }
     hidapi_wrapper->sendRequest<TT_RIING_QUAD_PACKET_SIZE>(
         devices[controller_idx], PROTOCOL_START_BYTE, PROTOCOL_SET,
-        PROTOCOL_LIGHT, fan_idx, 0x24, color_data);
+        PROTOCOL_LIGHT, fan_idx, PROTOCOL_PER_LED, color_data);
     auto ret =
         hidapi_wrapper
             ->readResponse<TT_RIING_QUAD_PACKET_SIZE, TT_RIING_QUAD_TIMEOUT>(
@@ -85,14 +86,15 @@ void TTRiingQuadController::setRGB(std::size_t controller_idx,
     }
 }
 
-std::vector<std::vector<std::array<float, 3>>> TTRiingQuadController::makeColorBuffer() {
-    std::vector<std::vector<std::array<float, 3>>> color_buffer;
+std::vector<std::vector<std::array<uint8_t, 3>>>
+TTRiingQuadController::makeColorBuffer() {
+    std::vector<std::vector<std::array<uint8_t, 3>>> color_buffer;
     size_t cnum = controllersNum();
 
     for (size_t i = 0; i < cnum; i++) {
-        std::vector<std::array<float, 3>> fan;
-        for ( size_t j = 0; j < TT_RIING_QUAD_NUM_CHANNELS; j++) {
-            fan.push_back(std::array<float, 3>{0.0F, 0.0F, 1.0F});
+        std::vector<std::array<uint8_t, 3>> fan;
+        for (size_t j = 0; j < TT_RIING_QUAD_NUM_CHANNELS; j++) {
+            fan.push_back(std::array<uint8_t, 3>{0x00, 0x00, 0xFF});
         }
         color_buffer.push_back(fan);
     }
@@ -101,14 +103,15 @@ std::vector<std::vector<std::array<float, 3>>> TTRiingQuadController::makeColorB
 }
 
 void TTRiingQuadController::initControllers() {
-    for (auto product_id :
-         hidapi_wrapper
-             ->getHidEnumerationGeneratorPaths<THERMALTAKE_VENDOR_ID>()) {
-            devices.push_back(
-                hidapi_wrapper->makeDevice<THERMALTAKE_VENDOR_ID>(product_id));
+    for (auto device_path :
+         hidapi_wrapper->getHidEnumerationGeneratorPaths<
+             THERMALTAKE_VENDOR_ID, TT_RIING_QUAD_PRODUCT_IDS_NUM>(
+             TT_RIING_QUAD_PRODUCT_IDS)) {
+        devices.push_back(
+            hidapi_wrapper->makeDevice<THERMALTAKE_VENDOR_ID>(device_path));
     }
 
-    for (auto &dev : devices) {
+    for (auto& dev : devices) {
         sendInit(dev);
     }
 }

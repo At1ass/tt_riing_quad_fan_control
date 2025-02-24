@@ -1,4 +1,4 @@
-#include "gui/window_manager.hpp"
+#include "gui/windowManager.hpp"
 
 #include <cstdio>
 #include <iostream>
@@ -19,7 +19,6 @@ WindowManager::WindowManager(char const* title, int width, int height) {
         throw std::runtime_error("Failed to initialize GLFW");
     }
 
-    // Create window with Vulkan context
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 
@@ -91,7 +90,6 @@ void WindowManager::showWindow() {
 }
 
 void WindowManager::createFramebuffers() {
-    // Create Framebuffers
     int w = 0;
     int h = 0;
     glfwGetFramebufferSize(window.get(), &w, &h);

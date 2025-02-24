@@ -2,9 +2,6 @@
 #define __CONTROLLER_DATA_HPP__
 
 #include <array>
-#include <iostream>
-#include <ostream>
-#include <ranges>
 #include <utility>
 #include <vector>
 

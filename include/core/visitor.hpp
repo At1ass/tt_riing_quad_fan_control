@@ -1,8 +1,6 @@
 #ifndef __VISITOR_HPP__
 #define __VISITOR_HPP__
 
-#include <memory>
-
 namespace core {
 
 class PointPlotStrategy;

@@ -1,4 +1,4 @@
-#include "core/uiObserver.hpp"
+#include "core/observers/ui/uiObserver.hpp"
 
 namespace core {
 

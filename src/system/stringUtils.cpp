@@ -1,13 +1,8 @@
-#ifndef __STRING_UTILS_HPP__
-#define __STRING_UTILS_HPP__
-
-#include <algorithm>
-#include <string>
-
+#include "system/stringUtils.hpp"
 #include "core/logger.hpp"
-#include "system/file_utils.hpp"
+#include "system/fileUtils.hpp"
 
-static auto findInput(std::string const& path, char const* input_prefix,
+auto findInput(std::string const& path, char const* input_prefix,
                       std::string& input, std::string const& name) -> bool {
     auto files = ls(path.c_str(), input_prefix, LS_FILES);
     for (auto& file : files) {
@@ -31,7 +26,7 @@ static auto findInput(std::string const& path, char const* input_prefix,
     return false;
 }
 
-static auto findFallbackInput(std::string const& path, char const* input_prefix,
+auto findFallbackInput(std::string const& path, char const* input_prefix,
                               std::string& input) -> bool {
     auto files = ls(path.c_str(), input_prefix, LS_FILES);
     if (files.empty()) {
@@ -51,4 +46,3 @@ static auto findFallbackInput(std::string const& path, char const* input_prefix,
     }
     return false;
 }
-#endif  //!__STRING_UTILS_HPP__

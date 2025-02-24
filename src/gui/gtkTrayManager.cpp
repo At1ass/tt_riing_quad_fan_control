@@ -1,6 +1,5 @@
-#include "gui/gtk_tray_manager.hpp"
+#include "gui/gtkTrayManager.hpp"
 
-#include <cstddef>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -18,7 +17,6 @@ GTKTrayManager::GTKTrayManager() {
     gtk_thread = std::jthread([this]() {
         gtk_init(nullptr, nullptr);
 
-        // Создаем индикатор
         indicator = std::shared_ptr<AppIndicator>(
             app_indicator_new("example-indicator", "indicator-messages",
                               APP_INDICATOR_CATEGORY_APPLICATION_STATUS),
@@ -26,14 +24,11 @@ GTKTrayManager::GTKTrayManager() {
 
         app_indicator_set_status(indicator.get(), APP_INDICATOR_STATUS_ACTIVE);
 
-        // Устанавливаем иконку
         app_indicator_set_attention_icon_full(
             indicator.get(), "dialog-information", "New messages");
 
-        // Создаем меню для индикатора
         menu = gtk_menu_new();
 
-        // Добавляем пункт для управления окном
         GtkWidget* toggle_item = gtk_menu_item_new_with_label("Toggle Window");
         g_signal_connect(  // NOLINT
             toggle_item, "activate",
@@ -50,7 +45,6 @@ GTKTrayManager::GTKTrayManager() {
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), toggle_item);  // NOLINT
 
-        // Добавляем пункт для выхода
         GtkWidget* quit_item = gtk_menu_item_new_with_label("Quit");
         g_signal_connect(quit_item, "activate",  // NOLINT
                          G_CALLBACK(+[](GtkWidget* /*widget*/, gpointer data) {
@@ -68,7 +62,6 @@ GTKTrayManager::GTKTrayManager() {
 
         gtk_widget_show_all(menu);
 
-        // Устанавливаем меню для индикатора
         app_indicator_set_menu(indicator.get(), GTK_MENU(menu));  // NOLINT
 
         gtk_main();
@@ -137,11 +130,11 @@ void GTKTrayManager::openFileChooserDialog(char const* title,
                 std::string filename(gtk_file_chooser_get_filename(
                     GTK_FILE_CHOOSER(dialog.get())));  // NOLINT
                 if (std::get<2>(*dialog_data)) {
-                    std::get<2> (*dialog_data)(filename);  // Вызываем колбэк
+                    std::get<2> (*dialog_data)(filename);
                 }
             }
 
-            return FALSE;  // Удаляем из очереди g_idle_add
+            return FALSE;
         },
         new std::tuple<char const*, GtkFileChooserAction,
                        FileDialogCallback>(  // NOLINT

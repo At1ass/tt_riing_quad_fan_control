@@ -1,7 +1,7 @@
 #ifndef __POINT_PLOT_STRATEGY__
 #define __POINT_PLOT_STRATEGY__
-#include "core/fan_mediator.hpp"
-#include "core/mediator.hpp"
+
+#include "core/mediators/fanMediator.hpp"
 #include "core/plotStrategy.hpp"
 #include "system/controllerData.hpp"
 

@@ -2,19 +2,15 @@
 #define __UI_HPP__
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
 
 #include "GLFW/glfw3.h"
-#include "core/fan_mediator.hpp"
+#include "core/mediators/fanMediator.hpp"
 #include "core/mediator.hpp"
 #include "core/plotStrategy.hpp"
 #include "imgui.h"
-#include "implot.h"
-#include "system/config.hpp"
-#include "system/vulkan.hpp"
 
 namespace gui {
 class GuiManager {
@@ -22,7 +18,6 @@ class GuiManager {
     using FileDialogCallback = std::function<void(std::string const&)>;
     using GeneralCallback = std::function<void()>;
 
-    // GLFW
     static std::shared_ptr<ImVector<char const*>> extensions();
 
     void setMediator(std::shared_ptr<core::Mediator> mediator);
@@ -79,7 +74,7 @@ class GuiManager {
                           std::forward<Callback>(callback));
         if constexpr (sizeof...(rest) > 0) {
             setCallbacksImpl(
-                std::forward<Rest>(rest)...);  // Рекурсивная обработка
+                std::forward<Rest>(rest)...);
         }
     }
 

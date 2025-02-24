@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "core/fan_controller.hpp"
+#include "core/fanController.hpp"
 
 namespace core {
 

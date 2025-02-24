@@ -3,14 +3,19 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <thread>
 #include <vector>
 
-#include "core/fan_mediator.hpp"
+#include "core/effectsEngine.hpp"
+#include "core/mediators/fanMediator.hpp"
 #include "core/mediator.hpp"
-#include "system/config.hpp"
-#include "system/hidapi_wrapper.hpp"
+#include "system/controllerData.hpp"
+#include "system/deviceController.hpp"
+
+constexpr std::chrono::milliseconds const DEFAULT_INTERVAL =
+    std::chrono::milliseconds(100);
 
 namespace core {
 
@@ -23,16 +28,26 @@ class FanController {
     FanController& operator=(FanController const&) = delete;
     FanController& operator=(FanController&&) = delete;
     FanController(std::shared_ptr<sys::System> sys,
-                  std::shared_ptr<sys::DeviceController> wr, bool run = true,
-                  std::chrono::milliseconds interval = std::chrono::seconds(1))
-        : system(sys), wrapper(wr), run(run), interval(interval) {
+                  std::shared_ptr<sys::DeviceController> wr,
+                  std::unique_ptr<EffectsEngine> ee, bool run = true,
+                  std::chrono::milliseconds interval = DEFAULT_INTERVAL)
+        : system(sys),
+          wrapper(wr),
+          effectsEngine(std::move(ee)),
+          run(run),
+          interval(interval) {
         color_buffer = wr->makeColorBuffer();
+        tmp_color_buffer = wr->makeColorBuffer();
         rgb_thread = std::thread(&FanController::rgbThreadLoop, this);
+        effects_thread = std::thread(&FanController::effectsThreadLoop, this);
     }
     ~FanController() {
         run.store(false);
         if (rgb_thread.joinable()) {
             rgb_thread.join();
+        }
+        if (effects_thread.joinable()) {
+            effects_thread.join();
         }
     }
 
@@ -40,7 +55,9 @@ class FanController {
     void updateCPUfans(float temp);
     void updateGPUfans(float temp);
     void updateFanColor(std::size_t controller_idx, std::size_t fan_idx,
-                       std::array<float, 3> const& color, bool to_all);
+                        std::array<uint8_t, 3> const& color, bool to_all);
+    void updateEffect(std::size_t effect_pos, std::size_t duration_s,
+                      std::array<uint8_t, 3> const& color);
     void pointInfo() { dataUse = DataUse::POINT; }
     void bezierInfo() { dataUse = DataUse::BEZIER; }
 
@@ -50,16 +67,20 @@ class FanController {
 
    private:
     void rgbThreadLoop();
+    void effectsThreadLoop();
     void updateFans(sys::MonitoringMode mode, float temp);
 
     DataUse dataUse = DataUse::POINT;
-    std::vector<std::vector<std::array<float, 3>>> color_buffer;
+    std::vector<std::vector<std::array<uint8_t, 3>>> color_buffer;
+    std::vector<std::vector<std::array<uint8_t, 3>>> tmp_color_buffer;
     std::shared_ptr<sys::System> system;
     std::shared_ptr<sys::DeviceController> wrapper;
     std::shared_ptr<Mediator> mediator;
+    std::unique_ptr<EffectsEngine> effectsEngine;
     std::chrono::milliseconds interval;
     std::atomic<bool> run = true;
     std::thread rgb_thread;
+    std::thread effects_thread;
     std::mutex hid_lock;
 };
 

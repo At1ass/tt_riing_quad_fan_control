@@ -55,11 +55,15 @@ class FanMediator : public Mediator {
     }
 
    private:
+    uint8_t convertChannel(float val);
+
     void dispatch(EventMessageType event_type, std::shared_ptr<Message> msg);
 
     void handleUpdateStats(std::shared_ptr<StatsMessage> msg);
 
     void handleUpdateColor(std::shared_ptr<ColorMessage> msg);
+
+    void handleUpdateEffect(std::shared_ptr<ColorMessage> msg);
 
     std::shared_ptr<gui::GuiManager> guiManager;
     std::shared_ptr<core::FanController> fanController;

@@ -2,9 +2,8 @@
 #define __PLOT_STRATEGY__
 
 #include <memory>
-#include <vector>
 
-#include "core/fan_mediator.hpp"
+#include "core/mediators/fanMediator.hpp"
 #include "core/visitor.hpp"
 #include "system/controllerData.hpp"
 

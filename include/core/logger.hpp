@@ -27,7 +27,7 @@ class Logger {
 
     static Logger log;
 
-    Logger& operator()(LogLevel level);  // Установка уровня лога
+    Logger& operator()(LogLevel level);
     template <typename T>
     Logger& operator<<(T const& value) {
         if constexpr (std::is_same_v<T, std::string_view>) {
@@ -44,7 +44,7 @@ class Logger {
             }
 
             logBuffer << value;
-            flush(value);  // Немедленный вывод в консоль/файл
+            flush(value);
         } else {
             static_assert(std::is_arithmetic_v<T> ||
                               std::is_convertible_v<T, std::string>,
@@ -58,24 +58,23 @@ class Logger {
     Logger& operator<<(std::ostream& (*manip)(std::ostream&));
 
     void setLogFile(
-        std::string const& filename);  // Установить файл для логирования
+        std::string const& filename);
     void enableConsoleLogging(
-        bool enable);  // Включить/выключить логирование в консоль
-    void enableColorLogging(bool enable);  // Включить/выключить цветной вывод
+        bool enable);
+    void enableColorLogging(bool enable);
 
    private:
-    Logger();  // Закрытый конструктор (Singleton)
+    Logger();
     ~Logger();
 
     std::ofstream logFile;
     bool logToConsole = true;
     bool useColor = true;
-    std::mutex logMutex;  // Потокобезопасность
+    std::mutex logMutex;
 
-    LogLevel currentLevel = LogLevel::INFO;  // Текущий уровень лога
-    std::ostringstream logBuffer;            // Буфер для лог-сообщения
+    LogLevel currentLevel = LogLevel::INFO;
+    std::ostringstream logBuffer;
 
-    // Вывод буфера в лог
     template <typename T>
     void flush(T const& value, bool force_new_line = false) {
         std::string log_message = logBuffer.str();

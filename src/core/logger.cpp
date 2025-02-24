@@ -7,7 +7,6 @@
 #include <ostream>
 #include <sstream>
 #include <string>
-// Получение экземпляра логгера (Singleton)
 
 namespace core {
 
@@ -37,11 +36,11 @@ auto Logger::getColorCode(LogLevel level) const -> std::string {
     }
     switch (level) {
         case LogLevel::INFO:
-            return "\033[32m";  // Зеленый
+            return "\033[32m";
         case LogLevel::WARNING:
-            return "\033[33m";  // Желтый
+            return "\033[33m";
         case LogLevel::ERROR:
-            return "\033[31m";  // Красный
+            return "\033[31m";
         default:
             return "\033[0m";
     }
@@ -62,11 +61,11 @@ auto Logger::operator()(LogLevel level) -> Logger& {
     std::scoped_lock const LOCK(logMutex);
 
     if (!shouldLog(level)) {
-        return *this;  // INFO игнорируется, если флаг выключен
+        return *this;
     }
 
     currentLevel = level;
-    logBuffer.str("");  // Очищаем буфер перед новой записью
+    logBuffer.str("");
     logBuffer.clear();
     logBuffer << getTimestamp() << " " << "["
               << (level == LogLevel::INFO      ? "INFO"
@@ -81,13 +80,13 @@ auto Logger::operator<<(std::ostream& (*manip)(std::ostream&)) -> Logger& {
     std::scoped_lock const LOCK(logMutex);
 
     if (!shouldLog(currentLevel)) {
-        return *this;  // INFO игнорируется, если флаг выключен
+        return *this;
     }
 
     if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::endl)) {
         logBuffer.clear();
         currentLevel = LogLevel::INFO;
-        flush("\n", true);  // Завершаем строку
+        flush("\n", true);
     }
     return *this;
 }

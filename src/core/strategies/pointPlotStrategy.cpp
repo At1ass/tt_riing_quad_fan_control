@@ -1,9 +1,9 @@
-#include "core/pointPlotStrategy.hpp"
+#include "core/strategies/pointPlotStrategy.hpp"
 
 #include <algorithm>
 #include <sstream>
 
-#include "core/fan_mediator.hpp"
+#include "core/mediators/fanMediator.hpp"
 #include "core/logger.hpp"
 #include "implot.h"
 #include "system/controllerData.hpp"

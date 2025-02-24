@@ -2,18 +2,20 @@
 #define __TT_RIING_QUAD_CONTROLLER__
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <vector>
 
 #include "hidapi.h"
 #include "system/hidapi.hpp"
-#include "system/hidapi_wrapper.hpp"
+#include "system/deviceController.hpp"
 
 constexpr uint16_t const THERMALTAKE_VENDOR_ID = 0x264A;
 constexpr uint16_t const TT_RIING_QUAD_START_PRODUCT_ID = 0x232B;
 constexpr uint16_t const TT_RIING_QUAD_END_PRODUCT_ID = 0x232E;
 
+constexpr std::size_t const TT_RIING_QUAD_PRODUCT_IDS_NUM = 4;
 constexpr std::size_t const TT_RIING_QUAD_NUM_CHANNELS = 5;
 constexpr std::size_t const TT_RIING_QUAD_PACKET_SIZE = 193;
 constexpr std::size_t const TT_RIING_QUAD_TIMEOUT = 250;
@@ -22,6 +24,9 @@ constexpr std::size_t const TT_RIING_QUAD_TIMEOUT_GET = 700;
 constexpr float const COLOR_MULTIPLIER = 255.0F;
 
 constexpr uint8_t const SHIFT = 8;
+
+constexpr std::array<uint16_t, TT_RIING_QUAD_PRODUCT_IDS_NUM> const
+    TT_RIING_QUAD_PRODUCT_IDS = {0x232B, 0x232C, 0x232D, 0x232E};
 
 namespace sys {
 
@@ -32,17 +37,24 @@ enum ProtocolType : unsigned char {
     PROTOCOL_START_BYTE = 0x00
 };
 
-enum ProtocolTarget {
+enum ProtocolTarget : unsigned char {
     PROTOCOT_FIRMWARE = 0x50,
     PROTOCOL_FAN = 0x51,
     PROTOCOL_LIGHT = 0x52,
 };
 
-enum ProtocolReturnValue { PROTOCOL_SUCCESS = 0xFC, PROTOCOL_FAIL = 0xFE };
+enum ProtocolRgbMode : unsigned char {
+    PROTOCOL_PER_LED = 0x24
+};
 
-enum ProtocolBytes { PROTOCOL_STATUS_BYTE = 0x02 };
+enum ProtocolReturnValue : unsigned char {
+    PROTOCOL_SUCCESS = 0xFC,
+    PROTOCOL_FAIL = 0xFE
+};
 
-enum ProtocolGetBytes {
+enum ProtocolBytes : unsigned char { PROTOCOL_STATUS_BYTE = 0x02 };
+
+enum ProtocolGetBytes : unsigned char {
     PROTOCOL_SPEED = 0x04,
     PROTOCOL_RPM_L = 0x05,
     PROTOCOL_RPM_H = 0x06
@@ -65,12 +77,14 @@ class TTRiingQuadController : public DeviceController {
     }
     ~TTRiingQuadController() override {}
 
-    std::pair<std::size_t, std::size_t> sentToFan(std::size_t controller_idx, std::size_t fan_idx,
-                   uint value) override;
+    std::pair<std::size_t, std::size_t> sentToFan(std::size_t controller_idx,
+                                                  std::size_t fan_idx,
+                                                  uint value) override;
 
-    void setRGB(std::size_t controller_idx, std::size_t fan_idx, std::array<float, 3>& colors) override;
+    void setRGB(std::size_t controller_idx, std::size_t fan_idx,
+                std::array<uint8_t, 3>& colors) override;
 
-    std::vector<std::vector<std::array<float, 3>>> makeColorBuffer() override;
+    std::vector<std::vector<std::array<uint8_t, 3>>> makeColorBuffer() override;
 
     std::size_t controllersNum() { return devices.size(); }
 

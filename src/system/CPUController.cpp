@@ -5,8 +5,8 @@
 #include <regex>
 
 #include "core/logger.hpp"
-#include "system/file_utils.hpp"
-#include "system/string_utils.hpp"
+#include "system/fileUtils.hpp"
+#include "system/stringUtils.hpp"
 
 namespace sys {
 

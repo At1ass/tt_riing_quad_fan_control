@@ -4,10 +4,10 @@
 #include <memory>
 #include <vector>
 
-#include "core/bezierCurvePlotStrategy.hpp"
-#include "core/fan_mediator.hpp"
 #include "core/logger.hpp"
-#include "core/pointPlotStrategy.hpp"
+#include "core/mediators/fanMediator.hpp"
+#include "core/strategies/bezierCurvePlotStrategy.hpp"
+#include "core/strategies/pointPlotStrategy.hpp"
 #include "core/visitor.hpp"
 #include "system/controllerData.hpp"
 

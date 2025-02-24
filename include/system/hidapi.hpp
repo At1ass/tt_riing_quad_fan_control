@@ -15,26 +15,17 @@
 
 constexpr std::size_t const MAX_STR = 256;
 
-// -------------------------------------------------------------------
-// 1) Служебные type traits для распознавания std::array<unsigned char, N>.
-//
-// Сначала - универсальный шаблон, по умолчанию false:
 template <typename T>
-struct is_std_array_of_uchar : std::false_type {};
+struct IsStdArrayOfUchar : std::false_type {};
 
-// Специализация: если T = std::array<unsigned char, N>, то true
 template <std::size_t N>
-struct is_std_array_of_uchar<std::array<unsigned char, N>> : std::true_type {};
-
-// Удобная переменная для if constexpr:
-template <typename T>
-inline constexpr bool is_std_array_of_uchar_v = is_std_array_of_uchar<T>::value;
-
-// -------------------------------------------------------------------
-// 2) "always_false_v" для статических_assert-ов в ветках if constexpr
+struct IsStdArrayOfUchar<std::array<unsigned char, N>> : std::true_type {};
 
 template <typename T>
-inline constexpr bool always_false_v = false;
+inline constexpr bool IS_STD_ARRAY_OF_UCHAR_V = IsStdArrayOfUchar<T>::value;
+
+template <typename T>
+inline constexpr bool ALWAYS_FALSE_V = false;
 
 namespace sys {
 
@@ -76,15 +67,14 @@ class HidApi {
 
     template <uint16_t vendorId>
     std::unique_ptr<hid_device, std::function<void(hid_device*)>> makeDevice(
-        const char* path) {
+        char const* path) {
         auto deleter = [](hid_device* dev) {
             if (dev != nullptr) {
                 hid_close(dev);
             }
         };
         std::unique_ptr<hid_device, std::function<void(hid_device*)>> dev(
-            hid_open_path(path),
-            deleter);
+            hid_open_path(path), deleter);
 
         if (dev.get() == NULL) {
             throw std::runtime_error(
@@ -101,21 +91,17 @@ class HidApi {
     void appendBytes(Container& buf, std::size_t& offset, U&& value) {
         using CleanU = std::decay_t<U>;
 
-        // Если это целочисленный тип => трактуем как один байт
         if constexpr (std::is_integral_v<CleanU>) {
             buf[offset++] = static_cast<unsigned char>(value);
         } else if constexpr (std::is_enum_v<CleanU>) {
-            // Enum (включая enum class)
-            // Считаем, что хотим 1 байт
             buf[offset++] = static_cast<unsigned char>(value);
         }
-        // Если это std::array<unsigned char, N>, копируем все элементы
-        else if constexpr (is_std_array_of_uchar_v<CleanU>) {
+        else if constexpr (IS_STD_ARRAY_OF_UCHAR_V<CleanU>) {
             for (auto b : value) {
                 buf[offset++] = b;
             }
         } else {
-            static_assert(always_false_v<U>,
+            static_assert(ALWAYS_FALSE_V<U>,
                           "Unsupported type in appendBytes (must be integral "
                           "or array<unsigned char, N>)");
         }
@@ -130,15 +116,12 @@ class HidApi {
                       "Too much data arguments");
         std::array<unsigned char, packet_size> usb_buf{0};
         std::size_t offset = 0;
-        // start_byte, f_prot, s_prot, static_cast<unsigned char>(data)...};
         usb_buf[offset++] = start_byte;
         usb_buf[offset++] = f_prot;
         usb_buf[offset++] = s_prot;
 
-        // Раскладываем все остальные аргументы data... через fold-expression
         (appendBytes(usb_buf, offset, std::forward<T>(data)), ...);
 
-        // Проверяем, чтобы не вылезли за packet_size
         if (offset > packet_size) {
             throw std::runtime_error(
                 "Too many bytes for the given packet_size");
@@ -150,8 +133,6 @@ class HidApi {
             throw std::runtime_error(
                 constructError("Failed hid_write: ", hid_error(dev.get())));
         }
-
-        core::Logger::log(core::LogLevel::INFO) << "Send request" << std::endl;
     }
 
     template <std::size_t packet_size, std::size_t timeout = 0>
@@ -171,28 +152,32 @@ class HidApi {
                                                     hid_error(dev.get())));
         }
 
-        core::Logger::log(core::LogLevel::INFO) << "Read response" << std::endl;
         return response;
     }
 
-    template <uint16_t vendorId>
-    std::generator<uint16_t> getHidEnumerationGeneratorPids() {
+    template <uint16_t vendorId, std::size_t N>
+    std::generator<uint16_t> getHidEnumerationGeneratorPids(std::array<uint16_t, N> const PRODUCT_IDS) {
         auto devs = getHidEnumeration<vendorId>();
         hid_device_info* tmp = devs.get();
 
         while (tmp != nullptr) {
-            co_yield tmp->product_id;
+            if (std::find(PRODUCT_IDS.begin(), PRODUCT_IDS.end(), tmp->product_id) != PRODUCT_IDS.end()) {
+                co_yield tmp->product_id;
+            }
             tmp = tmp->next;
         }
     }
 
-    template <uint16_t vendorId>
-    std::generator<const char*> getHidEnumerationGeneratorPaths() {
+    template <uint16_t vendorId, std::size_t N>
+    std::generator<char const*> getHidEnumerationGeneratorPaths(
+        std::array<uint16_t, N> const PRODUCT_IDS) {
         auto devs = getHidEnumeration<vendorId>();
         hid_device_info* tmp = devs.get();
 
         while (tmp != nullptr) {
-            co_yield tmp->path;
+            if (std::find(PRODUCT_IDS.begin(), PRODUCT_IDS.end(), tmp->product_id) != PRODUCT_IDS.end()) {
+                co_yield tmp->path;
+            }
             tmp = tmp->next;
         }
     }

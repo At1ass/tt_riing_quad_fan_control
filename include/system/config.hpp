@@ -8,7 +8,6 @@
 
 #include "toml.hpp"
 #include "system/controllerData.hpp"
-#include "system/systemBuilder.hpp"
 
 namespace sys {
 
@@ -35,7 +34,7 @@ class Config {
     void setControllerNum(std::size_t cnum) { controllers_num = cnum; }
 
     void updateConf(std::shared_ptr<sys::System> const& system);
-    void writeToFile(std::string_view path);
+    void writeToFile(std::string_view path = "");
 };
 
 };  // namespace sys

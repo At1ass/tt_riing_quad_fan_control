@@ -81,7 +81,6 @@ Nvidia::Nvidia() {
     }
 
     nvmlReturn_t result = NVML_SUCCESS;
-    // char name[NVML_DEVICE_NAME_BUFFER_SIZE];
     std::array<char, NVML_DEVICE_NAME_BUFFER_SIZE> name{};
     int ret = 0;
 

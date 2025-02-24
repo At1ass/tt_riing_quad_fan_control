@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/fan_controller.hpp"
+#include "core/fanController.hpp"
 #include "core/mediator.hpp"
 #include "gmock/gmock.h"
 #include "system/config.hpp"
