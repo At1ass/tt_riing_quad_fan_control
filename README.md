@@ -1,4 +1,12 @@
 [![CI/CD](https://github.com/At1ass/tt_riing_quad_fan_control/actions/workflows/ci.yml/badge.svg)](https://github.com/At1ass/tt_riing_quad_fan_control/actions/workflows/ci.yml)
+## Important Notice
+
+**Attention:**
+
+Development on the current version of the project has been discontinued. We are in the process of transitioning to a new version built on **Qt**. The upcoming version will feature an improved user interface, enhanced performance, and extended functionality.
+
+We appreciate your support and encourage you to stay tuned for updates and new releases.
+
 # TT Riing Quad Fan Control
 
 **TT Riing Quad Fan Control** is a fan control application designed for Thermaltake Riing Quad controllers. The application monitors CPU and Nvidia/AMD GPU temperatures to adjust fan speeds dynamically, providing an adaptive cooling solution for your system. Support fan colors change.
